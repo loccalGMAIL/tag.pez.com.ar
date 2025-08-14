@@ -1,7 +1,10 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\UploadController;
+use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Api\UploadStatusController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\UserController;
@@ -13,16 +16,22 @@ Route::post('login', [AuthController::class, 'login'])->name('login.post');
 Route::post('logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('auth/check', [AuthController::class, 'checkAuth'])->name('auth.check');
 
-// ✅ Redirigir raíz al login si no está autenticado
+// ✅ Redirigir raíz al dashboard si está autenticado
 Route::get('/', function () {
-    if (auth()->check()) {
-        return redirect()->route('uploads.index');
+    if (Auth::check()) {
+        return redirect()->route('dashboard.index');
     }
     return redirect()->route('login');
-});
+})->name('home');
 
 // ✅ Rutas protegidas con middleware auth
 Route::middleware(['auth'])->group(function () {
+    
+    // ✅ Rutas del Dashboard
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
+    Route::get('dashboard/metrics', [DashboardController::class, 'getMetrics'])->name('dashboard.metrics');
+    Route::get('dashboard/activities', [DashboardController::class, 'getActivities'])->name('dashboard.activities');
+    Route::get('dashboard/test-connection', [DashboardController::class, 'testConnection'])->name('dashboard.test-connection');
     
     // Rutas de uploads
     Route::resource('uploads', UploadController::class)->only([

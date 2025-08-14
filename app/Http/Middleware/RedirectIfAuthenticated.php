@@ -24,7 +24,7 @@ class RedirectIfAuthenticated
             if (Auth::guard($guard)->check()) {
                 // Si el usuario ya está autenticado y trata de acceder al login,
                 // redirigir al dashboard
-                return redirect()->route('uploads.index');
+                return redirect()->route('dashboard.index');
             }
         }
 

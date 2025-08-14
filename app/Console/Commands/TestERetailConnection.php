@@ -3,166 +3,149 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use App\Services\ERetailService;
-use GuzzleHttp\Client;
-use GuzzleHttp\Exception\GuzzleException;
+use Illuminate\Support\Facades\DB;
+use App\Services\DashboardService;
 
 class TestERetailConnection extends Command
 {
-    protected $signature = 'eretail:test {--debug : Mostrar información detallada}';
-    protected $description = 'Probar conexión con eRetail';
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
+    protected $signature = 'eretail:test-connection';
 
-    public function handle()
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
+    protected $description = 'Probar conexión a la base de datos eRetail (TitanDB)';
+
+    /**
+     * Execute the console command.
+     */
+    public function handle(DashboardService $dashboardService)
     {
-        $debug = $this->option('debug');
+        $this->info('🔌 Probando conexión a eRetail (TitanDB)...');
         
-        $this->info('====================================');
-        $this->info('Probando conexión con eRetail');
-        $this->info('====================================');
-        
-        // Mostrar configuración actual
-        $config = config('eretail');
-        $this->table(['Parámetro', 'Valor'], [
-            ['URL Base', $config['base_url']],
-            ['Usuario', $config['username']],
-            ['Password', str_repeat('*', strlen($config['password']))],
-            ['Timeout', $config['timeout'] . ' segundos'],
-        ]);
-        
-        // 1. Probar conexión básica de red
-        $this->info("\n1. Probando conexión de red...");
-        $this->testNetworkConnection($config['base_url'], $debug);
-        
-        // 2. Probar endpoint /api/hello
-        $this->info("\n2. Probando endpoint de test...");
-        $this->testHelloEndpoint($config['base_url'], $debug);
-        
-        // 3. Probar autenticación
-        $this->info("\n3. Probando autenticación...");
-        $this->testAuthentication($config, $debug);
+        try {
+            $result = $dashboardService->testERetailConnection();
+            
+            if ($result['status'] === 'success') {
+                $this->info('✅ Conexión exitosa');
+                $this->line("📊 Tiempo de respuesta: {$result['response_time']}");
+                $this->line("🕐 Timestamp: {$result['timestamp']}");
+                
+                // Probar métricas básicas con información detallada
+                $this->info('📈 Probando consultas de métricas...');
+                $this->testIndividualMetrics();
+                
+            } else {
+                $this->error('❌ Error de conexión');
+                $this->line("💬 Mensaje: {$result['message']}");
+                $this->line("🕐 Timestamp: {$result['timestamp']}");
+            }
+            
+        } catch (\Exception $e) {
+            $this->error('💥 Error inesperado: ' . $e->getMessage());
+            $this->line('🔍 Verifique la configuración en config/database.php y .env');
+        }
         
         return 0;
     }
     
-    private function testNetworkConnection($baseUrl, $debug)
+    /**
+     * Probar cada métrica individualmente para diagnosticar problemas
+     */
+    private function testIndividualMetrics()
     {
-        $parsed = parse_url($baseUrl);
-        $host = $parsed['host'] ?? 'localhost';
-        $port = $parsed['port'] ?? 80;
-        
-        if ($debug) {
-            $this->line("   Conectando a {$host}:{$port}");
-        }
-        
-        $connection = @fsockopen($host, $port, $errno, $errstr, 5);
-        
-        if ($connection) {
-            $this->info("   ✓ Conexión de red exitosa");
-            fclose($connection);
-        } else {
-            $this->error("   ✗ No se puede conectar a {$host}:{$port}");
-            $this->error("   Error: {$errstr} (código: {$errno})");
+        try {
+            $this->line('🔍 Probando métricas individuales...');
             
-            // Sugerencias
-            $this->warn("\n   Posibles soluciones:");
-            $this->line("   - Verificar que eRetail esté ejecutándose");
-            $this->line("   - Verificar la IP y puerto en el archivo .env");
-            $this->line("   - Verificar firewall/antivirus");
-            $this->line("   - Probar con: ping {$host}");
+            // 1. Total de Etiquetas
+            $this->testMetric('Total de Etiquetas', function() {
+                $shopCode = env('ERETAIL_DEFAULT_SHOP_CODE', 'TIENDA001');
+                $this->line("   🏪 Usando ShopCode: {$shopCode}");
+                
+                return DB::connection('eretail')
+                    ->table('Tag')
+                    ->where('ShopCode', $shopCode)
+                    ->count();
+            });
+            
+            // 2. Etiquetas Vinculadas
+            $this->testMetric('Etiquetas Vinculadas', function() {
+                $shopCode = env('ERETAIL_DEFAULT_SHOP_CODE', 'TIENDA001');
+                $this->line("   🏪 Usando ShopCode: {$shopCode}");
+                $this->line("   📋 Extrayendo ShopCode de los primeros 4 dígitos del GoodsId");
+                
+                return DB::connection('eretail')
+                    ->table('GoodsBind')
+                    ->whereRaw('LEFT(GoodsId, 4) = ?', [$shopCode])
+                    ->whereNotNull('GoodsId')
+                    ->count();
+            });
+            
+            // 3. Total de Productos
+            $this->testMetric('Total de Productos', function() {
+                $shopCode = env('ERETAIL_DEFAULT_SHOP_CODE', 'TIENDA001');
+                $this->line("   🏪 Usando ShopCode: {$shopCode}");
+                
+                return DB::connection('eretail')
+                    ->table('Goods')
+                    ->where('ShopCode', $shopCode)
+                    ->count();
+            });
+            
+            // 4. AP en Línea
+            $this->testMetric('AP en Línea', function() {
+                $shopCode = env('ERETAIL_DEFAULT_SHOP_CODE', 'TIENDA001');
+                $timeout = config('dashboard.ap_offline_timeout', 5);
+                $timeoutMinutesAgo = \Carbon\Carbon::now()->subMinutes($timeout);
+                $this->line("   🏪 Usando ShopCode: {$shopCode}");
+                $this->line("   ⏰ Timeout AP: {$timeout} minutos");
+                
+                return DB::connection('eretail')
+                    ->table('AP')
+                    ->where('ShopCode', $shopCode)
+                    ->where('ApStatus', 1)
+                    ->where('LastHeartbeatTime', '>', $timeoutMinutesAgo)
+                    ->count();
+            });
+            
+        } catch (\Exception $e) {
+            $this->error('❌ Error probando métricas: ' . $e->getMessage());
         }
     }
     
-    private function testHelloEndpoint($baseUrl, $debug)
+    /**
+     * Probar una métrica específica
+     */
+    private function testMetric(string $name, callable $query)
     {
         try {
-            $client = new Client([
-                'base_uri' => $baseUrl,
-                'timeout' => 5,
-                'verify' => false, // Deshabilitar verificación SSL por ahora
-                'http_errors' => false
-            ]);
+            $this->line("   📊 Probando: {$name}");
             
-            $fullUrl = rtrim($baseUrl, '/') . '/api/hello';
+            $result = $query();
             
-            if ($debug) {
-                $this->line("   GET {$fullUrl}");
-            }
-            
-            $response = $client->get('/api/hello');
-            $statusCode = $response->getStatusCode();
-            $body = $response->getBody()->getContents();
-            
-            if ($debug) {
-                $this->line("   Status Code: {$statusCode}");
-                $this->line("   Response: {$body}");
-            }
-            
-            if ($statusCode === 200 && $body === 'OK') {
-                $this->info("   ✓ Endpoint de test respondió correctamente");
+            if ($result !== null && $result !== false) {
+                $this->info("      ✅ {$name}: " . number_format($result));
             } else {
-                $this->error("   ✗ Respuesta inesperada");
-                $this->line("   Status: {$statusCode}");
-                $this->line("   Body: {$body}");
-            }
-            
-        } catch (GuzzleException $e) {
-            $this->error("   ✗ Error al conectar: " . $e->getMessage());
-            
-            if ($debug) {
-                $this->error("   Detalles: " . $e->getTraceAsString());
-            }
-        } catch (\Exception $e) {
-            $this->error("   ✗ Error inesperado: " . $e->getMessage());
-        }
-    }
-    
-    private function testAuthentication($config, $debug)
-    {
-        try {
-            $client = new Client([
-                'base_uri' => $config['base_url'],
-                'timeout' => 10,
-                'verify' => false,
-                'http_errors' => false
-            ]);
-            
-            $payload = [
-                'userName' => $config['username'],
-                'password' => $config['password']
-            ];
-            
-            if ($debug) {
-                $this->line("   POST /api/login");
-                $this->line("   Payload: " . json_encode($payload));
-            }
-            
-            $response = $client->post('/api/login', [
-                'json' => $payload,
-                'headers' => [
-                    'Content-Type' => 'application/json',
-                    'Accept' => 'application/json'
-                ]
-            ]);
-            
-            $statusCode = $response->getStatusCode();
-            $body = json_decode($response->getBody()->getContents(), true);
-            
-            if ($debug) {
-                $this->line("   Status Code: {$statusCode}");
-                $this->line("   Response: " . json_encode($body, JSON_PRETTY_PRINT));
-            }
-            
-            if ($statusCode === 200 && isset($body['code']) && $body['code'] === 0) {
-                $this->info("   ✓ Autenticación exitosa");
-                $this->line("   Token recibido: " . substr($body['body'], 0, 20) . "...");
-            } else {
-                $this->error("   ✗ Error de autenticación");
-                $this->line("   Código: " . ($body['code'] ?? 'N/A'));
-                $this->line("   Mensaje: " . ($body['message'] ?? 'Sin mensaje'));
+                $this->warn("      ⚠️ {$name}: Sin resultado");
             }
             
         } catch (\Exception $e) {
-            $this->error("   ✗ Error: " . $e->getMessage());
+            $this->error("      ❌ {$name}: Error - " . $e->getMessage());
+            
+            // Mostrar información adicional del error
+            if (str_contains($e->getMessage(), 'Table')) {
+                $this->line("         💡 Posible problema: Nombre de tabla incorrecto");
+            } elseif (str_contains($e->getMessage(), 'Column')) {
+                $this->line("         💡 Posible problema: Nombre de columna incorrecto");
+            } elseif (str_contains($e->getMessage(), 'Access denied')) {
+                $this->line("         💡 Posible problema: Permisos de usuario");
+            }
         }
     }
 }

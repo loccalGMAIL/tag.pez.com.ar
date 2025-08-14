@@ -21,14 +21,20 @@
                 <div class="flex">
                     <!-- Logo -->
                     <div class="flex-shrink-0 flex items-center">
-                        <h1 class="text-xl font-bold text-gray-800">
+                        <a href="{{ route('dashboard.index') }}" class="text-xl font-bold text-gray-800 hover:text-blue-600 transition duration-300">
                             <i class="fas fa-tags text-blue-600 mr-2"></i>
                             ELS Retail Updater
-                        </h1>
+                        </a>
                     </div>
                     
                     <!-- Navigation Links -->
                     <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+                        <a href="{{ route('dashboard.index') }}" 
+                           class="@if(request()->routeIs('dashboard.*')) border-blue-500 text-gray-900 @else border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 @endif inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            <i class="fas fa-chart-line mr-2"></i>
+                            Dashboard
+                        </a>
+                        
                         <a href="{{ route('uploads.index') }}" 
                            class="@if(request()->routeIs('uploads.*')) border-blue-500 text-gray-900 @else border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 @endif inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                             <i class="fas fa-file-upload mr-2"></i>

@@ -17,7 +17,7 @@ class AuthController extends Controller
     {
         // Si ya está autenticado, redirigir al dashboard
         if (Auth::check()) {
-            return redirect()->intended(route('uploads.index'));
+            return redirect()->intended(route('dashboard.index'));
         }
 
         return view('auth.login');
@@ -51,7 +51,7 @@ class AuthController extends Controller
                 'user_agent' => $request->userAgent()
             ]);
 
-            return redirect()->intended(route('uploads.index'))
+            return redirect()->intended(route('dashboard.index'))
                 ->with('success', '¡Bienvenido ' . Auth::user()->name . '!');
         }
 

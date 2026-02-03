@@ -7,9 +7,17 @@ use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Models\Upload;
 use App\Models\UploadProcessLog;
+use App\Models\AppSetting;
 
 class DashboardService
 {
+    /**
+     * Obtener el ShopCode desde la configuración
+     */
+    private function getShopCode(): string
+    {
+        return AppSetting::get('default_shop_code', env('ERETAIL_DEFAULT_SHOP_CODE', '0010'));
+    }
     /**
      * Obtener todas las métricas del dashboard
      */
@@ -42,7 +50,7 @@ class DashboardService
     private function getTotalEtiquetas(): int
     {
         try {
-            $shopCode = env('ERETAIL_DEFAULT_SHOP_CODE', 'TIENDA001');
+            $shopCode = $this->getShopCode();
             
             $result = DB::connection('eretail')
                 ->table('Tag')
@@ -62,7 +70,7 @@ class DashboardService
     private function getEtiquetasVinculadas(): int
     {
         try {
-            $shopCode = env('ERETAIL_DEFAULT_SHOP_CODE', 'TIENDA001');
+            $shopCode = $this->getShopCode();
             
             $result = DB::connection('eretail')
                 ->table('GoodsBind')
@@ -83,7 +91,7 @@ class DashboardService
     private function getTotalProductos(): int
     {
         try {
-            $shopCode = env('ERETAIL_DEFAULT_SHOP_CODE', 'TIENDA001');
+            $shopCode = $this->getShopCode();
             
             $result = DB::connection('eretail')
                 ->table('Goods')
@@ -103,14 +111,14 @@ class DashboardService
     private function getAPOnline(): int
     {
         try {
-            $shopCode = env('ERETAIL_DEFAULT_SHOP_CODE', 'TIENDA001');
+            $shopCode = $this->getShopCode();
             $timeout = config('dashboard.ap_offline_timeout', 5);
             $timeoutMinutesAgo = Carbon::now()->subMinutes($timeout);
             
             $result = DB::connection('eretail')
                 ->table('AP')
                 ->where('ShopCode', $shopCode)
-                ->where('ApStatus', 1)
+                ->whereIn('ApStatus', [1, 2]) // 1=Online, 2=Heartbeat (ambos son "en línea")
                 ->where('LastHeartbeatTime', '>', $timeoutMinutesAgo)
                 ->count();
             
@@ -222,26 +230,27 @@ class DashboardService
         
         try {
             $hours = config('dashboard.recent_activities_hours', 24);
-            $shopCode = env('ERETAIL_DEFAULT_SHOP_CODE', 'TIENDA001');
+            $shopCode = $this->getShopCode();
             
-            // Cambios de estado AP recientes
+            // Cambios de estado AP recientes - Solo mostrar desconexiones (offline)
             $recentAPChanges = DB::connection('eretail')
                 ->table('AP')
                 ->where('ShopCode', $shopCode)
-                ->where('LastUpdatedTime', '>=', Carbon::now()->subHours($hours))
-                ->orderBy('LastUpdatedTime', 'desc')
+                ->whereNotIn('ApStatus', [1, 2]) // Solo offline (excluir Online=1 y Heartbeat=2)
+                ->where('LastOfflineTime', '>=', Carbon::now()->subHours($hours))
+                ->orderBy('LastOfflineTime', 'desc')
                 ->limit(3)
                 ->get();
-            
+
             foreach ($recentAPChanges as $ap) {
-                $statusText = $ap->ApStatus == 1 ? 'en línea' : 'offline';
+                $apName = !empty($ap->Remark) ? $ap->Remark : $ap->APID;
                 $activities[] = [
                     'type' => 'ap_status',
                     'icon' => 'fa-wifi',
-                    'color' => $ap->ApStatus == 1 ? 'green' : 'red',
-                    'title' => 'Cambio de estado AP',
-                    'description' => "AP {$ap->APID} ahora está {$statusText}",
-                    'timestamp' => Carbon::parse($ap->LastUpdatedTime)
+                    'color' => 'red',
+                    'title' => 'AP Desconectado',
+                    'description' => "AP {$apName} está offline",
+                    'timestamp' => Carbon::parse($ap->LastOfflineTime)
                 ];
             }
             
@@ -301,7 +310,7 @@ class DashboardService
             }
             
             // Buscar en los últimos 7 días para eRetail
-            $shopCode = env('ERETAIL_DEFAULT_SHOP_CODE', 'TIENDA001');
+            $shopCode = $this->getShopCode();
             
             $recentBindings = DB::connection('eretail')
                 ->table('GoodsBind')

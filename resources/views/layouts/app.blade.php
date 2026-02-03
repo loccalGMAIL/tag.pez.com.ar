@@ -20,11 +20,14 @@
             <div class="flex justify-between h-16">
                 <div class="flex">
                     <!-- Logo -->
-                    <div class="flex-shrink-0 flex items-center">
+                    <div class="flex-shrink-0 flex flex-col justify-center">
                         <a href="{{ route('dashboard.index') }}" class="text-xl font-bold text-gray-800 hover:text-blue-600 transition duration-300">
                             <i class="fas fa-tags text-blue-600 mr-2"></i>
                             ELS Retail Updater
                         </a>
+                        <span style="font-family: Arial, sans-serif; font-size: 10px; color: #9ca3af; margin-left: 28px;">
+                            v{{ config('version.major') }}.{{ config('version.minor') }}.{{ config('version.patch') }}
+                        </span>
                     </div>
                     
                     <!-- Navigation Links -->

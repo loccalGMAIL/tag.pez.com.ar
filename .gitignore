@@ -21,6 +21,7 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+api.docx
 
 # Archivos de documentación del dashboard
 DASHBOARD_SETUP.md

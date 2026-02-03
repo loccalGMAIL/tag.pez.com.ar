@@ -84,10 +84,11 @@
                     class="mx-auto h-20 w-20 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-6 floating-animation">
                     <i class="fas fa-tags text-3xl text-white"></i>
                 </div>
-                <h2 class="text-4xl font-bold text-white mb-2">
+                <h2 class="text-4xl font-bold text-white mb-1">
                     ELS Retail Updater
                 </h2>
-                <p class="text-xl text-white text-opacity-90">
+
+                <p class="text-xl text-white text-opacity-90 mt-2">
                     Inicia sesión en tu cuenta
                 </p>
             </div>
@@ -178,6 +179,9 @@
                     &copy; {{ date('Y') }}
                     Designed by <a target="_blank" href="https://pez.com.ar">Pez</a>
                 </p>
+                                <span style="font-family: Arial, sans-serif; font-size: 11px; color: rgba(255,255,255,0.6);">
+                    v{{ config('version.major') }}.{{ config('version.minor') }}.{{ config('version.patch') }}
+                </span>
             </div>
         </div>
     </div>

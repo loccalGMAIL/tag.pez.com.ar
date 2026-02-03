@@ -8,7 +8,8 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Api\UploadStatusController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\UserController;
-use App\Http\Controllers\Auth\AuthController; // ✅ Nueva importación
+use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\TagController;
 
 // ✅ Rutas de autenticación (sin middleware)
 Route::get('login', [AuthController::class, 'showLoginForm'])->name('login');
@@ -51,5 +52,12 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('users', UserController::class)->only([
         'index', 'store', 'show', 'update', 'destroy'
     ]);
-    
+
+    // Rutas de etiquetas
+    Route::get('tags', [TagController::class, 'index'])->name('tags.index');
+    Route::get('tags/data', [TagController::class, 'getData'])->name('tags.data');
+    Route::post('tags/refresh-multiple', [TagController::class, 'refreshMultiple'])->name('tags.refresh.multiple');
+    Route::get('tags/{tagId}', [TagController::class, 'show'])->name('tags.show');
+    Route::post('tags/{tagId}/refresh', [TagController::class, 'refresh'])->name('tags.refresh');
+
 });

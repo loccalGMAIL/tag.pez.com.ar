@@ -518,4 +518,62 @@ public function __construct()
             return false;
         }
     }
+
+    /**
+     * Refrescar etiquetas específicas por Tag ID (ID físico de la etiqueta)
+     * Usa refreshType=4 según documentación de eRetail
+     */
+    public function refreshSpecificTagIds(array $tagIds, $shopCode = null)
+    {
+        $shopCode = $shopCode ?? $this->config['default_shop_code'];
+
+        try {
+            Log::info('Refrescando etiquetas por Tag ID', [
+                'tag_ids_count' => count($tagIds),
+                'shop_code' => $shopCode,
+                'primeros_3_tags' => array_slice($tagIds, 0, 3)
+            ]);
+
+            $response = $this->authenticatedRequest('POST', '/api/esl/tag/Refresh', [
+                'json' => [
+                    'shopCode' => $shopCode,
+                    'refreshType' => 4, // 4 = Price Tag ID List
+                    'refreshName' => '',
+                    'tags' => $tagIds
+                ]
+            ]);
+
+            // Verificar estructura de respuesta
+            $code = null;
+            $message = null;
+
+            if (isset($response['code'])) {
+                $code = $response['code'];
+                $message = $response['message'] ?? 'Sin mensaje';
+            } elseif (isset($response['value']['code'])) {
+                $code = $response['value']['code'];
+                $message = $response['value']['message'] ?? 'Sin mensaje';
+            }
+
+            if ($code === 0) {
+                Log::info('Etiquetas refrescadas exitosamente por Tag ID', [
+                    'tag_ids_count' => count($tagIds),
+                    'message' => $message
+                ]);
+                return true;
+            }
+
+            Log::error('Error refrescando etiquetas por Tag ID', [
+                'code' => $code ?? 'unknown',
+                'message' => $message ?? 'Respuesta inválida',
+                'full_response' => $response
+            ]);
+
+            return false;
+
+        } catch (GuzzleException $e) {
+            Log::error('Error HTTP refrescando etiquetas por Tag ID: ' . $e->getMessage());
+            throw new ERetailException('Error al refrescar etiquetas: ' . $e->getMessage());
+        }
+    }
 }

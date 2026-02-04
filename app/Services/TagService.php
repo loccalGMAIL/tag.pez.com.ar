@@ -218,6 +218,90 @@ class TagService
     }
 
     /**
+     * Obtener Tag IDs por goodsCodes (ProductVariant IDs)
+     *
+     * Relación: ProductVariant.id → Goods.GoodsCode → Goods.Id → GoodsBind.GoodsId → GoodsBind.DeviceId → Tag.Id
+     */
+    public function getTagIdsByGoodsCodes(array $goodsCodes, ?string $shopCode = null): array
+    {
+        if (empty($goodsCodes)) {
+            return [];
+        }
+
+        try {
+            $shopCode = $shopCode ?? $this->getShopCode();
+            $goodsCodesStr = array_map('strval', $goodsCodes);
+
+            Log::info('Buscando Tag IDs en eRetail', [
+                'goodsCodes' => $goodsCodesStr,
+                'shopCode' => $shopCode
+            ]);
+
+            // Primero verificar si los productos existen en la tabla Goods
+            $existingGoods = DB::connection('eretail')
+                ->table('Goods')
+                ->whereIn('GoodsCode', $goodsCodesStr)
+                ->select('Id', 'GoodsCode', 'GoodsName')
+                ->get();
+
+            Log::info('Productos encontrados en Goods', [
+                'buscados' => count($goodsCodesStr),
+                'encontrados' => $existingGoods->count(),
+                'goodsIds' => $existingGoods->pluck('Id')->toArray()
+            ]);
+
+            if ($existingGoods->isEmpty()) {
+                Log::warning('No se encontraron productos en tabla Goods para los GoodsCodes buscados');
+                return [];
+            }
+
+            // Verificar vinculaciones en GoodsBind
+            $goodsIds = $existingGoods->pluck('Id')->toArray();
+            $bindings = DB::connection('eretail')
+                ->table('GoodsBind')
+                ->whereIn('GoodsId', $goodsIds)
+                ->select('GoodsId', 'DeviceId')
+                ->get();
+
+            Log::info('Vinculaciones encontradas en GoodsBind', [
+                'goodsIds_buscados' => count($goodsIds),
+                'bindings_encontrados' => $bindings->count(),
+                'deviceIds' => $bindings->pluck('DeviceId')->toArray()
+            ]);
+
+            if ($bindings->isEmpty()) {
+                Log::warning('No hay vinculaciones en GoodsBind para los productos');
+                return [];
+            }
+
+            // Obtener Tag IDs finales
+            $deviceIds = $bindings->pluck('DeviceId')->toArray();
+            $tagIds = DB::connection('eretail')
+                ->table('Tag')
+                ->where('ShopCode', $shopCode)
+                ->where('IsDeleted', 0)
+                ->whereIn('Id', $deviceIds)
+                ->distinct()
+                ->pluck('Id')
+                ->toArray();
+
+            Log::info('Tag IDs encontrados para goodsCodes', [
+                'goodsCodes_count' => count($goodsCodes),
+                'tagIds_found' => count($tagIds),
+                'tagIds' => $tagIds
+            ]);
+
+            return $tagIds;
+
+        } catch (\Exception $e) {
+            Log::error('Error obteniendo Tag IDs: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            return [];
+        }
+    }
+
+    /**
      * Obtener estadísticas generales de etiquetas
      */
     public function getTagStats(): array

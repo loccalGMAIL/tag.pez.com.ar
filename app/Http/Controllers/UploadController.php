@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Upload;
 use App\Models\UploadProcessLog;  // 🔥 NUEVO: Usar UploadProcessLog en lugar de ProductUpdateLog
 use App\Models\ProductVariant;    // 🔥 NUEVO: Para obtener variantes
+use App\Jobs\ProcessUploadJob;
 use App\Services\ExcelProcessorService;
 use App\Services\ERetailService;
+use App\Services\TagService;
 use App\Services\UploadLogService;  // 🔥 NUEVO: Servicio especializado
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
@@ -73,33 +75,16 @@ class UploadController extends Controller
             Log::info("Upload creado con ID: {$upload->id}");
             
             DB::commit();
-            
-            // Procesar inmediatamente de forma síncrona
-            try {
-                Log::info("Iniciando procesamiento del upload {$upload->id}");
-                
-                $processor = app(ExcelProcessorService::class);
-                $processor->processFile($path, $upload->id);
-                
-                Log::info("Procesamiento completado exitosamente");
-                
-                return redirect()
-                    ->route('uploads.show', $upload)
-                    ->with('success', 'Archivo procesado correctamente.');
-                    
-            } catch (\Exception $e) {
-                Log::error("Error en procesamiento: " . $e->getMessage());
-                
-                // Actualizar el upload con el error
-                $upload->update([
-                    'status' => 'failed',
-                    'error_message' => $e->getMessage()
-                ]);
-                
-                return redirect()
-                    ->route('uploads.show', $upload)
-                    ->with('error', 'Error al procesar el archivo: ' . $e->getMessage());
-            }
+
+            // Despachar Job para procesamiento asíncrono
+            $upload->update(['status' => 'processing']);
+            ProcessUploadJob::dispatch($upload, $path);
+
+            Log::info("Job despachado para upload {$upload->id}");
+
+            return redirect()
+                ->route('uploads.show', $upload)
+                ->with('info', 'Archivo recibido. El procesamiento se ejecuta en segundo plano.');
                 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -204,49 +189,69 @@ public function show(Upload $upload)
     }
     
     /**
-     * 🔥 REFRESCAR ETIQUETAS - NUEVA ARQUITECTURA
+     * 🔥 REFRESCAR ETIQUETAS - OPTIMIZADO: Solo productos con cambios de precio/barcode
      */
     public function refreshTags(Upload $upload)
     {
         try {
-            // 🔥 OBTENER ProductVariant IDs exitosos usando la nueva arquitectura
-            $successfulVariantIds = UploadProcessLog::where('upload_id', $upload->id)
+            // 🔥 Solo variants con cambios de precio o barcode
+            $changedVariantIds = UploadProcessLog::where('upload_id', $upload->id)
                 ->where('status', 'success')
                 ->whereIn('action', ['created', 'updated'])
+                ->where(function($query) {
+                    $query->where('price_changed', true)
+                          ->orWhere('barcode_changed', true);
+                })
                 ->with('productVariant')
                 ->get()
-                ->pluck('productVariant.id')  // 🔥 ProductVariant.id para eRetail
-                ->filter()  // Remover nulls
+                ->pluck('productVariant.id')
+                ->filter()
                 ->unique()
                 ->values()
                 ->toArray();
-            
-            if (empty($successfulVariantIds)) {
+
+            if (empty($changedVariantIds)) {
                 return redirect()
                     ->back()
-                    ->with('error', 'No hay productos exitosos para actualizar etiquetas');
+                    ->with('info', 'No hay productos con cambios de precio o código de barras para actualizar');
             }
 
-            Log::info("Refrescando etiquetas para variantes", [
+            Log::info("Buscando Tag IDs para variantes con cambios", [
                 'upload_id' => $upload->id,
-                'variant_ids' => $successfulVariantIds,
-                'count' => count($successfulVariantIds)
+                'variant_ids' => $changedVariantIds,
+                'count' => count($changedVariantIds)
             ]);
-            
-            // 🔥 ACTUALIZAR etiquetas usando ProductVariant IDs
-            $eRetailService = app(ERetailService::class);
-            $result = $eRetailService->refreshSpecificTags($successfulVariantIds, $upload->shop_code);
-            
-            if ($result) {
+
+            // 🔥 Obtener Tag IDs desde eRetail DB
+            $tagService = app(TagService::class);
+            $tagIds = $tagService->getTagIdsByGoodsCodes($changedVariantIds, $upload->shop_code);
+
+            if (empty($tagIds)) {
                 return redirect()
                     ->back()
-                    ->with('success', 'Actualización de etiquetas iniciada. Se actualizarán ' . count($successfulVariantIds) . ' etiquetas en los próximos minutos.');
+                    ->with('warning', 'No se encontraron etiquetas vinculadas para los productos modificados');
             }
-            
+
+            Log::info("Tag IDs encontrados para actualización", [
+                'upload_id' => $upload->id,
+                'tag_ids_count' => count($tagIds),
+                'primeros_3_tags' => array_slice($tagIds, 0, 3)
+            ]);
+
+            // 🔥 Refrescar en bloques de 50 tags (refreshType=4)
+            $eRetailService = app(ERetailService::class);
+            $result = $eRetailService->refreshTagsInBatches($tagIds, $upload->shop_code);
+
+            if ($result['exitosos'] > 0) {
+                return redirect()
+                    ->back()
+                    ->with('success', "Actualización iniciada para {$result['exitosos']} de {$result['total_enviados']} etiquetas en {$result['batches']} bloques");
+            }
+
             return redirect()
                 ->back()
                 ->with('error', 'Error al solicitar actualización de etiquetas');
-                
+
         } catch (\Exception $e) {
             Log::error("Error refrescando etiquetas", [
                 'upload_id' => $upload->id,
@@ -260,13 +265,28 @@ public function show(Upload $upload)
     }
 
     /**
-     * 🔥 NUEVO: Obtener progreso de procesamiento vía AJAX
+     * Obtener progreso de procesamiento vía AJAX
+     * Usa campos del modelo Upload (actualizados cada 10 productos) para respuesta rápida
      */
     public function getProgress(Upload $upload)
     {
         try {
-            $progress = $this->uploadLogService->getProcessingProgress($upload->id);
-            return response()->json($progress);
+            $upload->refresh();
+
+            $total = $upload->total_products ?? 0;
+            $processed = $upload->processed_products ?? 0;
+            $percentage = $total > 0 ? round(($processed / $total) * 100, 2) : 0;
+
+            $isComplete = in_array($upload->status, ['completed', 'failed']);
+
+            return response()->json([
+                'progress_percentage' => $percentage,
+                'processed' => $processed,
+                'total_products' => $total,
+                'status' => $upload->status,
+                'is_complete' => $isComplete,
+                'error_message' => $upload->error_message,
+            ]);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }

@@ -520,6 +520,59 @@ public function __construct()
     }
 
     /**
+     * Refrescar etiquetas en bloques (batches)
+     * Divide los tagIds en chunks y llama a refreshSpecificTagIds por cada uno
+     */
+    public function refreshTagsInBatches(array $tagIds, $shopCode = null, int $batchSize = 50): array
+    {
+        $shopCode = $shopCode ?? $this->config['default_shop_code'];
+        $chunks = array_chunk($tagIds, $batchSize);
+        $totalSent = 0;
+        $totalSuccess = 0;
+        $totalFailed = 0;
+
+        Log::info("Iniciando refresh de etiquetas en batches", [
+            'total_tags' => count($tagIds),
+            'batch_size' => $batchSize,
+            'total_batches' => count($chunks)
+        ]);
+
+        foreach ($chunks as $index => $chunk) {
+            $totalSent += count($chunk);
+
+            Log::info("Enviando batch " . ($index + 1) . "/" . count($chunks), [
+                'tags_en_batch' => count($chunk)
+            ]);
+
+            try {
+                $result = $this->refreshSpecificTagIds($chunk, $shopCode);
+
+                if ($result) {
+                    $totalSuccess += count($chunk);
+                } else {
+                    $totalFailed += count($chunk);
+                }
+            } catch (\Exception $e) {
+                $totalFailed += count($chunk);
+                Log::error("Error en batch " . ($index + 1), [
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+
+        $summary = [
+            'total_enviados' => $totalSent,
+            'exitosos' => $totalSuccess,
+            'fallidos' => $totalFailed,
+            'batches' => count($chunks)
+        ];
+
+        Log::info("Refresh en batches completado", $summary);
+
+        return $summary;
+    }
+
+    /**
      * Refrescar etiquetas específicas por Tag ID (ID físico de la etiqueta)
      * Usa refreshType=4 según documentación de eRetail
      */

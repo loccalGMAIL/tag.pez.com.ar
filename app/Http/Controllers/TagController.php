@@ -144,21 +144,21 @@ class TagController extends Controller
                 ], 400);
             }
 
-            Log::info("Solicitando refresh de " . count($tagIds) . " etiquetas");
+            Log::info("Solicitando refresh de " . count($tagIds) . " etiquetas en bloques de 50");
 
             $this->eRetailService->login();
-            $response = $this->eRetailService->refreshSpecificTagIds($tagIds);
+            $result = $this->eRetailService->refreshTagsInBatches($tagIds);
 
-            if ($response) {
+            if ($result['exitosos'] > 0) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Solicitud de actualización enviada para ' . count($tagIds) . ' etiquetas',
+                    'message' => "Actualización enviada: {$result['exitosos']} exitosas, {$result['fallidos']} fallidas ({$result['batches']} bloques)",
                 ]);
             }
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al solicitar actualización',
+                'message' => "Error al solicitar actualización ({$result['fallidos']} fallidas)",
             ], 500);
 
         } catch (\Exception $e) {

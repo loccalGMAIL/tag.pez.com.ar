@@ -32,6 +32,9 @@ class ExcelProcessorService
      */
     public function processFile($filePath, $uploadId)
     {
+        // Extender tiempo de ejecución para archivos grandes
+        set_time_limit(600);
+
         Log::info("=== INICIANDO PROCESAMIENTO CON NUEVA ARQUITECTURA ===");
         Log::info("Upload ID: {$uploadId}");
         Log::info("Archivo: {$filePath}");
@@ -275,7 +278,8 @@ class ExcelProcessorService
             ]);
 
             // 🔥 NUEVO: Determinar si hubo cambios (después de firstOrCreate)
-            $priceChanged = !$product->wasRecentlyCreated && $oldPrice !== null && $oldPrice != $rowData['precio_final'];
+            // Redondear a 2 decimales para evitar falsos positivos por precisión decimal
+            $priceChanged = !$product->wasRecentlyCreated && $oldPrice !== null && round((float)$oldPrice, 2) !== round((float)$rowData['precio_final'], 2);
             $barcodeChanged = !$variant->wasRecentlyCreated && $oldBarcode !== null && $oldBarcode != $rowData['cod_barras'];
 
             Log::info("📊 Cambios detectados", [

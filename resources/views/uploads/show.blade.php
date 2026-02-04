@@ -108,12 +108,17 @@
             <div class="bg-white shadow rounded-lg p-6 mb-6" x-data="progressUpdater()">
                 <h3 class="text-lg font-medium mb-4">Progreso</h3>
                 <div class="w-full bg-gray-200 rounded-full h-4">
-                    <div class="bg-blue-600 h-4 rounded-full transition-all duration-500" :style="`width: ${progress}%`">
+                    <div class="h-4 rounded-full transition-all duration-500"
+                         :class="statusFailed ? 'bg-red-600' : 'bg-blue-600'"
+                         :style="`width: ${progress}%`">
                     </div>
                 </div>
                 <p class="text-sm text-gray-600 mt-2">
                     <span x-text="processed"></span> de <span x-text="total"></span> productos procesados
+                    (<span x-text="progress"></span>%)
                 </p>
+                <p x-show="statusFailed" class="text-sm text-red-600 mt-1 font-medium"
+                   x-text="'Error: ' + errorMessage"></p>
             </div>
         @endif
 
@@ -295,9 +300,12 @@
                     progress: 0,
                     processed: 0,
                     total: 0,
+                    statusFailed: false,
+                    errorMessage: '',
+                    polling: null,
                     init() {
                         this.updateProgress();
-                        setInterval(() => {
+                        this.polling = setInterval(() => {
                             this.updateProgress();
                         }, 2000);
                     },
@@ -308,8 +316,14 @@
                             this.progress = data.progress_percentage || 0;
                             this.processed = data.processed || 0;
                             this.total = data.total_products || 0;
-                            
-                            if (data.is_complete) {
+
+                            if (data.status === 'failed') {
+                                this.statusFailed = true;
+                                this.errorMessage = data.error_message || 'Error desconocido';
+                                clearInterval(this.polling);
+                                setTimeout(() => window.location.reload(), 3000);
+                            } else if (data.is_complete) {
+                                clearInterval(this.polling);
                                 window.location.reload();
                             }
                         } catch (error) {

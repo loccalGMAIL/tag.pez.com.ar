@@ -16,7 +16,7 @@ return [
     */
 
     'major' => 1,
-    'minor' => 1,
+    'minor' => 2,
     'patch' => 0,
 
     /*
@@ -35,6 +35,17 @@ return [
     */
 
     'changelog' => [
+        '1.2.0' => [
+            'date' => '2026-02-03',
+            'changes' => [
+                'Nuevo módulo de gestión de Etiquetas (Tags)',
+                'Vista con DataTable de etiquetas con filtros y búsqueda',
+                'Estadísticas de etiquetas: total, vinculadas, batería baja, offline',
+                'Detalle de etiqueta con información de batería, señal y comunicación',
+                'Función para refrescar etiquetas individuales o múltiples',
+                'Enlace de navegación a Etiquetas en el menú principal',
+            ],
+        ],
         '1.1.0' => [
             'date' => '2026-02-03',
             'changes' => [

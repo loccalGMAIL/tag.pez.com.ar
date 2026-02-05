@@ -17,7 +17,7 @@ return [
 
     'major' => 1,
     'minor' => 2,
-    'patch' => 0,
+    'patch' => 1,
 
     /*
     |--------------------------------------------------------------------------
@@ -25,7 +25,7 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'release_date' => '2026-02-03',
+    'release_date' => '2026-02-05',
     'codename' => '',
 
     /*
@@ -35,6 +35,18 @@ return [
     */
 
     'changelog' => [
+        '1.2.1' => [
+            'date' => '2026-02-05',
+            'changes' => [
+                'Queue worker vía ruta HTTP (reemplazo de cron bloqueado en Hostinger)',
+                'Límite de productos por upload con estado pending_approval',
+                'Advertencia informativa en vista de carga de archivos',
+                'Instrucciones colapsables en formulario de upload',
+                'Comando upload:reprocess con flag --force para consola',
+                'Redirect a lista de uploads después de carga exitosa',
+                'Corrección de timeout en queue:listen local',
+            ],
+        ],
         '1.2.0' => [
             'date' => '2026-02-03',
             'changes' => [

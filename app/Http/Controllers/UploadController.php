@@ -10,10 +10,12 @@ use App\Services\ExcelProcessorService;
 use App\Services\ERetailService;
 use App\Services\TagService;
 use App\Services\UploadLogService;  // 🔥 NUEVO: Servicio especializado
+use App\Models\AppSetting;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class UploadController extends Controller
 {
@@ -76,6 +78,27 @@ class UploadController extends Controller
             
             DB::commit();
 
+            // Contar filas del Excel para validar límite
+            $maxProducts = (int) AppSetting::get('upload_max_products', 5000);
+            $fullPath = storage_path('app/private/' . $path);
+            $spreadsheet = IOFactory::load($fullPath);
+            $rowCount = $spreadsheet->getActiveSheet()->getHighestDataRow() - 1; // Sin header
+            $spreadsheet->disconnectWorksheets();
+            unset($spreadsheet);
+
+            if ($rowCount > $maxProducts) {
+                $upload->update([
+                    'status' => 'pending_approval',
+                    'total_products' => $rowCount,
+                ]);
+
+                Log::warning("Upload {$upload->id} excede el límite: {$rowCount} filas (máx {$maxProducts})");
+
+                return redirect()
+                    ->route('uploads.index')
+                    ->with('warning', "El archivo contiene {$rowCount} productos (límite: {$maxProducts}). Requiere aprobación del administrador para procesarse.");
+            }
+
             // Despachar Job para procesamiento asíncrono
             $upload->update(['status' => 'processing']);
             ProcessUploadJob::dispatch($upload, $path);
@@ -83,7 +106,7 @@ class UploadController extends Controller
             Log::info("Job despachado para upload {$upload->id}");
 
             return redirect()
-                ->route('uploads.show', $upload)
+                ->route('uploads.index')
                 ->with('info', 'Archivo recibido. El procesamiento se ejecuta en segundo plano.');
                 
         } catch (\Exception $e) {

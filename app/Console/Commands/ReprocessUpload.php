@@ -9,7 +9,7 @@ use App\Services\ExcelProcessorService;
 
 class ReprocessUpload extends Command
 {
-    protected $signature = 'upload:reprocess {id : ID del upload}';
+    protected $signature = 'upload:reprocess {id : ID del upload} {--force : Saltar confirmación}';
     protected $description = 'Reprocesar un upload que falló o quedó pendiente';
 
     public function handle()
@@ -26,7 +26,7 @@ class ReprocessUpload extends Command
         $this->info("Archivo: {$upload->original_filename}");
         $this->info("Estado actual: {$upload->status}");
         
-        if (!$this->confirm('¿Desea continuar?')) {
+        if (!$this->option('force') && !$this->confirm('¿Desea continuar?')) {
             return 0;
         }
         
@@ -43,7 +43,7 @@ class ReprocessUpload extends Command
             ]);
             
             // Limpiar logs anteriores
-            $upload->productLogs()->delete();
+            $upload->processLogs()->delete();
             
             $processor = app(ExcelProcessorService::class);
             $processor->processFile($upload->filename, $upload->id);

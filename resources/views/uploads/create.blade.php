@@ -12,18 +12,6 @@
                     x-data="uploadForm()">
                     @csrf
 
-                    <!-- Shop Code -->
-                    {{-- <div class="mb-6">
-                        <label for="shop_code" class="block text-sm font-medium text-gray-700 mb-2">
-                            Código de Tienda
-                        </label>
-                        <input type="text" name="shop_code" id="shop_code"
-                            value="{{ config('eretail.default_shop_code') }}"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        <p class="mt-1 text-sm text-gray-500">
-                            Dejar en blanco para usar el valor por defecto
-                        </p>
-                    </div> --}}
 
                     <!-- File Upload -->
                     <div class="mb-6">
@@ -86,35 +74,47 @@
                             Cargar y Procesar
                         </button>
                     </div>
-<br>
-<br>
 
-                                        <!-- Instrucciones -->
-                    <div class="mb-6 bg-blue-50 border-l-4 border-blue-400 p-4">
+                    <!-- Advertencia de límite -->
+                    <div class="mt-4 bg-amber-50 border-l-4 border-amber-400 p-4">
                         <div class="flex">
                             <div class="flex-shrink-0">
-                                <i class="fas fa-info-circle text-blue-400"></i>
+                                <i class="fas fa-exclamation-triangle text-amber-400"></i>
                             </div>
                             <div class="ml-3">
-                                <p class="text-sm text-blue-700">
-                                    El archivo Excel debe contener las columnas:
-                                    <strong>Cód.Barras</strong>, <strong>Código</strong>, <strong>Descripción</strong>,
-                                    <strong>Fina ($)</strong> y <strong>UltModif</strong>
+                                <p class="text-sm text-amber-700">
+                                    Archivos con más de <strong>{{ number_format(\App\Models\AppSetting::get('upload_max_products', 5000)) }}</strong> productos quedarán en espera y deberán ser procesados por el administrador.
                                 </p>
-                                <p class="text-sm text-blue-700 mt-1">
-                                    Se aplicará un descuento del
-                                    {{ \App\Models\AppSetting::get('discount_percentage', 12) }}% automáticamente
-                                </p>
-                                <div class="mt-2 text-xs text-blue-600">
-                                    <p><strong>Estructura esperada:</strong></p>
-                                    <ul class="list-disc list-inside ml-2 space-y-1">
-                                        <li><strong>Cód.Barras:</strong> Código de barras del producto</li>
-                                        <li><strong>Código:</strong> Código interno del sistema de facturación</li>
-                                        <li><strong>Descripción:</strong> Nombre del producto</li>
-                                        <li><strong>Fina ($):</strong> Precio final del producto</li>
-                                        <li><strong>UltModif:</strong> Fecha de última modificación</li>
-                                    </ul>
-                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Instrucciones (colapsable) -->
+                    <div class="mt-4" x-data="{ open: false }">
+                        <button type="button" @click="open = !open" class="flex items-center text-sm text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            <span x-text="open ? 'Ocultar instrucciones' : 'Ver instrucciones del archivo'"></span>
+                            <i class="fas fa-chevron-down ml-1 transition-transform duration-200" :class="open && 'rotate-180'"></i>
+                        </button>
+                        <div x-show="open" x-transition class="mt-2 bg-blue-50 border-l-4 border-blue-400 p-4">
+                            <p class="text-sm text-blue-700">
+                                El archivo Excel debe contener las columnas:
+                                <strong>Cód.Barras</strong>, <strong>Código</strong>, <strong>Descripción</strong>,
+                                <strong>Fina ($)</strong> y <strong>UltModif</strong>
+                            </p>
+                            <p class="text-sm text-blue-700 mt-1">
+                                Se aplicará un descuento del
+                                {{ \App\Models\AppSetting::get('discount_percentage', 12) }}% automáticamente
+                            </p>
+                            <div class="mt-2 text-xs text-blue-600">
+                                <p><strong>Estructura esperada:</strong></p>
+                                <ul class="list-disc list-inside ml-2 space-y-1">
+                                    <li><strong>Cód.Barras:</strong> Código de barras del producto</li>
+                                    <li><strong>Código:</strong> Código interno del sistema de facturación</li>
+                                    <li><strong>Descripción:</strong> Nombre del producto</li>
+                                    <li><strong>Fina ($):</strong> Precio final del producto</li>
+                                    <li><strong>UltModif:</strong> Fecha de última modificación</li>
+                                </ul>
                             </div>
                         </div>
                     </div>

@@ -55,19 +55,21 @@
                                         @php
                                             $statusColors = [
                                                 'pending' => 'bg-yellow-100 text-yellow-800',
+                                                'pending_approval' => 'bg-orange-100 text-orange-800',
                                                 'processing' => 'bg-blue-100 text-blue-800',
                                                 'completed' => 'bg-green-100 text-green-800',
                                                 'failed' => 'bg-red-100 text-red-800'
                                             ];
                                             $statusLabels = [
                                                 'pending' => 'Pendiente',
+                                                'pending_approval' => 'Requiere aprobación',
                                                 'processing' => 'Procesando',
                                                 'completed' => 'Completado',
                                                 'failed' => 'Error'
                                             ];
                                         @endphp
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $statusColors[$upload->status] }}">
-                                            {{ $statusLabels[$upload->status] }}
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $statusColors[$upload->status] ?? 'bg-gray-100 text-gray-800' }}">
+                                            {{ $statusLabels[$upload->status] ?? ucfirst($upload->status) }}
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">

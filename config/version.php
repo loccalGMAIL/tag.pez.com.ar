@@ -17,7 +17,7 @@ return [
 
     'major' => 1,
     'minor' => 2,
-    'patch' => 1,
+    'patch' => 2,
 
     /*
     |--------------------------------------------------------------------------
@@ -35,6 +35,15 @@ return [
     */
 
     'changelog' => [
+        '1.2.2' => [
+            'date' => '2026-02-05',
+            'changes' => [
+                'Actividades recientes del dashboard: resumen por upload en vez de logs individuales',
+                'Títulos diferenciados por estado de upload (completado, procesando, error, en espera)',
+                'Estadísticas de progreso (procesados/total) en actividades recientes',
+                'Corrección de campos inexistentes en logs de procesamiento (product_id, message)',
+            ],
+        ],
         '1.2.1' => [
             'date' => '2026-02-05',
             'changes' => [

@@ -6,7 +6,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Models\Upload;
-use App\Models\UploadProcessLog;
 use App\Models\AppSetting;
 
 class DashboardService
@@ -177,40 +176,33 @@ class DashboardService
             // Si no hay actividades recientes, buscar en los últimos 7 días
             $timeRange = Carbon::now()->subHours($hours);
             
-            // Uploads recientes
+            // Uploads recientes (resumen por upload)
             $recentUploads = Upload::where('created_at', '>=', $timeRange)
                 ->orderBy('created_at', 'desc')
                 ->limit(5)
                 ->get();
-            
+
             foreach ($recentUploads as $upload) {
+                $statusConfig = match($upload->status) {
+                    'completed' => ['icon' => 'fa-check-circle', 'color' => 'green', 'title' => 'Upload completado'],
+                    'processing' => ['icon' => 'fa-spinner', 'color' => 'blue', 'title' => 'Procesando upload'],
+                    'failed' => ['icon' => 'fa-exclamation-triangle', 'color' => 'red', 'title' => 'Upload con errores'],
+                    'pending_approval' => ['icon' => 'fa-pause-circle', 'color' => 'yellow', 'title' => 'Upload en espera'],
+                    default => ['icon' => 'fa-clock', 'color' => 'yellow', 'title' => 'Upload pendiente'],
+                };
+
+                $desc = $upload->original_filename;
+                if ($upload->total_products) {
+                    $desc .= " — {$upload->processed_products}/{$upload->total_products} productos";
+                }
+
                 $activities[] = [
                     'type' => 'upload',
-                    'icon' => $upload->status === 'completed' ? 'fa-check' : 
-                              ($upload->status === 'failed' ? 'fa-exclamation-triangle' : 'fa-clock'),
-                    'color' => $upload->status === 'completed' ? 'green' : 
-                              ($upload->status === 'failed' ? 'red' : 'yellow'),
-                    'title' => 'Upload de archivo',
-                    'description' => "Archivo: {$upload->original_filename} - Estado: {$upload->status}",
-                    'timestamp' => $upload->created_at
-                ];
-            }
-            
-            // Logs de procesamiento recientes
-            $recentLogs = UploadProcessLog::where('created_at', '>=', Carbon::now()->subHours($hours))
-                ->whereIn('status', ['success', 'error'])
-                ->orderBy('created_at', 'desc')
-                ->limit(5)
-                ->get();
-            
-            foreach ($recentLogs as $log) {
-                $activities[] = [
-                    'type' => $log->status === 'success' ? 'processing' : 'error',
-                    'icon' => $log->status === 'success' ? 'fa-cog' : 'fa-exclamation-triangle',
-                    'color' => $log->status === 'success' ? 'blue' : 'red',
-                    'title' => 'Procesamiento de productos',
-                    'description' => "Producto: {$log->product_id} - {$log->message}",
-                    'timestamp' => $log->created_at
+                    'icon' => $statusConfig['icon'],
+                    'color' => $statusConfig['color'],
+                    'title' => $statusConfig['title'],
+                    'description' => $desc,
+                    'timestamp' => $upload->updated_at
                 ];
             }
             

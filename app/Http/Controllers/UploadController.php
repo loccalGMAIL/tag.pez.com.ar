@@ -106,7 +106,7 @@ class UploadController extends Controller
             Log::info("Job despachado para upload {$upload->id}");
 
             return redirect()
-                ->route('uploads.index')
+                ->route('uploads.show', $upload)
                 ->with('info', 'Archivo recibido. El procesamiento se ejecuta en segundo plano.');
                 
         } catch (\Exception $e) {

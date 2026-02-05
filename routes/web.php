@@ -16,14 +16,17 @@ use App\Http\Controllers\TagController;
 Route::get('/__run_queue', function () {
     abort_unless(request('key') === config('app.queue_key'), 403);
 
-    $phpBinary = PHP_BINARY ?: 'php';
-    $artisan = base_path('artisan');
+    // Procesar queue después de enviar la respuesta al cliente
+    app()->terminating(function () {
+        set_time_limit(600);
+        ini_set('memory_limit', '512M');
 
-    if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-        pclose(popen("start /B \"\" \"$phpBinary\" \"$artisan\" queue:work --stop-when-empty --timeout=600 --memory=512", 'r'));
-    } else {
-        pclose(popen("$phpBinary $artisan queue:work --stop-when-empty --timeout=600 --memory=512 > /dev/null 2>&1 &", 'r'));
-    }
+        Artisan::call('queue:work', [
+            '--stop-when-empty' => true,
+            '--timeout' => 600,
+            '--memory' => 512,
+        ]);
+    });
 
     return response('ok', 200);
 });

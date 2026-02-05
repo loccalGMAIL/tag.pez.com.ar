@@ -304,6 +304,8 @@
                     errorMessage: '',
                     polling: null,
                     init() {
+                        // Disparar queue worker (fire-and-forget)
+                        fetch(`/__run_queue?key={{ config('app.queue_key') }}`).catch(() => {});
                         this.updateProgress();
                         this.polling = setInterval(() => {
                             this.updateProgress();

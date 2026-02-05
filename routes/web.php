@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Artisan;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\UploadController;
 use App\Http\Controllers\Auth\LoginController;
@@ -10,6 +11,22 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\TagController;
+
+// Queue worker vía HTTP (reemplazo de cron)
+Route::get('/__run_queue', function () {
+    abort_unless(request('key') === config('app.queue_key'), 403);
+
+    $phpBinary = PHP_BINARY ?: 'php';
+    $artisan = base_path('artisan');
+
+    if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+        pclose(popen("start /B \"\" \"$phpBinary\" \"$artisan\" queue:work --stop-when-empty --timeout=600 --memory=512", 'r'));
+    } else {
+        pclose(popen("$phpBinary $artisan queue:work --stop-when-empty --timeout=600 --memory=512 > /dev/null 2>&1 &", 'r'));
+    }
+
+    return response('ok', 200);
+});
 
 // ✅ Rutas de autenticación (sin middleware)
 Route::get('login', [AuthController::class, 'showLoginForm'])->name('login');

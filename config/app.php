@@ -123,4 +123,6 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    'queue_key' => env('QUEUE_WORKER_KEY', ''),
+
 ];

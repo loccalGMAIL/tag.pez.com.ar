@@ -2,11 +2,13 @@
 
 namespace App\Jobs;
 
+use App\Models\Organization;
 use App\Models\Upload;
 use App\Models\UploadProcessLog;
-use App\Services\ExcelProcessorService;
 use App\Services\ERetailService;
+use App\Services\ExcelProcessorService;
 use App\Services\TagService;
+use App\Services\TenantManager;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -23,20 +25,37 @@ class ProcessUploadJob implements ShouldQueue
 
     protected Upload $upload;
     protected string $filePath;
+    protected ?int $organizationId;
 
     public function __construct(Upload $upload, string $filePath)
     {
         $this->upload = $upload;
         $this->filePath = $filePath;
+        $this->organizationId = $upload->organization_id;
     }
 
-    public function handle(ExcelProcessorService $processor, TagService $tagService, ERetailService $eRetailService): void
+    public function handle(): void
     {
-        // Aumentar límites para archivos grandes (18,000+ filas)
+        // CRÍTICO: restaurar contexto de tenant en el worker.
+        // El worker no pasa por middleware HTTP, por lo que se debe configurar manualmente.
+        if ($this->organizationId) {
+            $organization = Organization::find($this->organizationId);
+            if ($organization) {
+                app(TenantManager::class)->setTenant($organization);
+            }
+        }
+
+        // Resolver servicios DESPUÉS de setear el tenant para que tomen las credenciales correctas
+        $processor    = app(ExcelProcessorService::class);
+        $tagService   = app(TagService::class);
+        $eRetailService = app(ERetailService::class);
+
         ini_set('memory_limit', '512M');
         set_time_limit(600);
 
-        Log::info("ProcessUploadJob: Iniciando procesamiento del upload {$this->upload->id}");
+        Log::info("ProcessUploadJob: Iniciando procesamiento del upload {$this->upload->id}", [
+            'organization_id' => $this->organizationId,
+        ]);
 
         // 1. Procesar el Excel
         $processor->processFile($this->filePath, $this->upload->id);

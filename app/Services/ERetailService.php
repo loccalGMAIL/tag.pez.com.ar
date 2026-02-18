@@ -13,23 +13,32 @@ class ERetailService
     private $client;
     private $token;
     private $config;
+    private string $tokenCacheKey;
 
-public function __construct()
-{
-    $this->config = config('eretail');
+    public function __construct()
+    {
+        $tenantManager = app(\App\Services\TenantManager::class);
+        $tenant = $tenantManager->getTenant();
 
-    $this->client = new Client([
-        'base_uri' => $this->config['base_url'],
-        'timeout' => $this->config['timeout'],
-        'headers' => [
-            'Content-Type' => 'application/json',
-            'Accept' => 'application/json',
-        ]
-    ]);
+        if ($tenant) {
+            $this->config = $tenant->getERetailConfig();
+            $this->tokenCacheKey = "eretail_token_org_{$tenant->id}";
+        } else {
+            $this->config = config('eretail');
+            $this->tokenCacheKey = 'eretail_token';
+        }
 
-    // Cargar token desde cache si existe
-    $this->token = Cache::get('eretail_token');
-}
+        $this->client = new Client([
+            'base_uri' => $this->config['base_url'],
+            'timeout'  => $this->config['timeout'],
+            'headers'  => [
+                'Content-Type' => 'application/json',
+                'Accept'       => 'application/json',
+            ]
+        ]);
+
+        $this->token = Cache::get($this->tokenCacheKey);
+    }
 
 
     /**
@@ -38,8 +47,7 @@ public function __construct()
     public function login()
     {
         try {
-            // Intentar obtener token del cache
-            $this->token = Cache::get('eretail_token');
+            $this->token = Cache::get($this->tokenCacheKey);
 
             if ($this->token) {
                 return true;
@@ -56,8 +64,7 @@ public function __construct()
 
             if ($data['code'] === 0) {
                 $this->token = $data['body'];
-                // Guardar token en cache por 5 horas (el token dura 6)
-                Cache::put('eretail_token', $this->token, now()->addHours(5));
+                Cache::put($this->tokenCacheKey, $this->token, now()->addHours(5));
 
                 Log::info('eRetail login successful');
                 return true;
@@ -235,7 +242,7 @@ public function __construct()
             // Si el error es 401, intentar login de nuevo
             if ($e->getCode() === 401) {
                 Log::warning('Token expirado (401), reautenticando...');
-                Cache::forget('eretail_token');
+                Cache::forget($this->tokenCacheKey);
                 $this->token = null;
                 $this->login();
 

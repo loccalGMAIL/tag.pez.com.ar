@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\TenantManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -14,7 +15,10 @@ class UserController extends Controller
      */
     public function index()
     {
-        $users = User::orderBy('created_at', 'desc')->get();
+        $organizationId = app(TenantManager::class)->getTenantId();
+        $users = User::where('organization_id', $organizationId)
+            ->orderBy('created_at', 'desc')
+            ->get();
         return view('users.index', compact('users'));
     }
 
@@ -30,9 +34,11 @@ class UserController extends Controller
         ]);
 
         User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'name'            => $request->name,
+            'email'           => $request->email,
+            'password'        => Hash::make($request->password),
+            'organization_id' => app(TenantManager::class)->getTenantId(),
+            'is_super_admin'  => false,
         ]);
 
         return redirect()
@@ -79,8 +85,9 @@ class UserController extends Controller
      */
     public function destroy(User $user)
     {
-        // Prevenir eliminar el último usuario admin
-        if (User::count() <= 1) {
+        // Prevenir eliminar el último usuario de la organización
+        $organizationId = app(TenantManager::class)->getTenantId();
+        if (User::where('organization_id', $organizationId)->count() <= 1) {
             return redirect()
                 ->route('users.index')
                 ->with('error', 'No se puede eliminar el último usuario del sistema');

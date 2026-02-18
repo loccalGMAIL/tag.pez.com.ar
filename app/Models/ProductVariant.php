@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Product;
@@ -9,9 +10,10 @@ use App\Models\UploadProcessLog;
 
 class ProductVariant extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToTenant;
 
     protected $fillable = [
+        'organization_id',
         'product_id',
         'codigo_interno',
         'cod_barras',

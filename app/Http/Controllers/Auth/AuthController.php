@@ -43,16 +43,35 @@ class AuthController extends Controller
         if (Auth::attempt($credentials, $remember)) {
             $request->session()->regenerate();
 
-            // Log del login exitoso
+            $user = Auth::user();
+
             \Log::info('Usuario logueado exitosamente', [
-                'user_id' => Auth::id(),
-                'email' => Auth::user()->email,
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'is_super_admin' => $user->is_super_admin,
                 'ip' => $request->ip(),
                 'user_agent' => $request->userAgent()
             ]);
 
+            // Super-admin va al panel de administración
+            if ($user->is_super_admin) {
+                return redirect()->route('admin.dashboard')
+                    ->with('success', '¡Bienvenido ' . $user->name . '!');
+            }
+
+            // Usuario normal: verificar que tiene organización asignada
+            if (!$user->organization_id) {
+                Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                throw ValidationException::withMessages([
+                    'email' => 'Tu cuenta no está asignada a ninguna organización. Contactá al administrador.',
+                ]);
+            }
+
             return redirect()->intended(route('dashboard.index'))
-                ->with('success', '¡Bienvenido ' . Auth::user()->name . '!');
+                ->with('success', '¡Bienvenido ' . $user->name . '!');
         }
 
         // Log del intento fallido

@@ -15,9 +15,9 @@ return [
     |
     */
 
-    'major' => 1,
-    'minor' => 2,
-    'patch' => 2,
+    'major' => 2,
+    'minor' => 0,
+    'patch' => 0,
 
     /*
     |--------------------------------------------------------------------------
@@ -25,8 +25,8 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'release_date' => '2026-02-05',
-    'codename' => '',
+    'release_date' => '2026-02-18',
+    'codename' => 'SaaS',
 
     /*
     |--------------------------------------------------------------------------
@@ -35,6 +35,23 @@ return [
     */
 
     'changelog' => [
+        '2.0.0' => [
+            'date' => '2026-02-18',
+            'changes' => [
+                'Conversión a arquitectura SaaS multi-tenant',
+                'Tabla organizations con credenciales eRetail (API + DB) cifradas por tenant',
+                'Aislamiento automático de datos por organización via global scopes (BelongsToTenant)',
+                'TenantManager: gestión del contexto de tenant y override de conexión DB en runtime',
+                'Panel de super-administración (/admin): organizaciones, usuarios, uploads cross-tenant',
+                'Impersonación de organizaciones desde el panel admin con banner visible',
+                'Diagnóstico de conexión BD por organización desde el panel admin',
+                'ProcessUploadJob restaura contexto de tenant en workers de cola',
+                'ERetailService lee credenciales del tenant activo (token cache per-tenant)',
+                'AppSetting con cache keys aisladas por tenant',
+                'Corrección: credenciales hardcodeadas eliminadas de config/database.php',
+                'Corrección de nombre: ELS → ESL en títulos de página',
+            ],
+        ],
         '1.2.2' => [
             'date' => '2026-02-05',
             'changes' => [

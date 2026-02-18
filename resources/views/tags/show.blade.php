@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Etiqueta ' . $tag['tag_id'] . ' - ELS Retail Updater')
+@section('title', 'Etiqueta ' . $tag['tag_id'] . ' - ESL Retail Updater')
 
 @section('content')
 <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -34,6 +34,39 @@
             </div>
         </div>
 
+        <!-- Mensajes flash -->
+        @if(session('success'))
+            <div class="mb-6 p-4 bg-green-100 border border-green-400 text-green-800 rounded-lg">
+                {{ session('success') }}
+            </div>
+        @endif
+        @if(session('info'))
+            <div class="mb-6 p-4 bg-blue-100 border border-blue-400 text-blue-800 rounded-lg">
+                {{ session('info') }}
+            </div>
+        @endif
+        @if(session('warning'))
+            <div class="mb-6 p-4 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded-lg">
+                {{ session('warning') }}
+            </div>
+        @endif
+        @if(session('error'))
+            <div class="mb-6 p-4 bg-red-100 border border-red-400 text-red-800 rounded-lg">
+                {{ session('error') }}
+            </div>
+        @endif
+
+        {{-- Resultado del refresh automático post-carga --}}
+        @if($upload->status === 'completed' && $upload->tags_refreshed !== null)
+            <div class="mb-6 p-4 bg-purple-100 border border-purple-400 text-purple-800 rounded-lg">
+                @if($upload->tags_refreshed > 0)
+                    Actualización automática de etiquetas completada: <strong>{{ $upload->tags_refreshed }}</strong> etiqueta(s) refrescada(s).
+                @else
+                    Actualización automática completada: no se encontraron etiquetas vinculadas a los productos de esta carga.
+                @endif
+            </div>
+        @endif
+
         <!-- Estadísticas -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
             <div class="bg-white overflow-hidden shadow rounded-lg">
@@ -131,7 +164,15 @@
                 <div class="mb-4 flex space-x-4">
                     <select
                         class="rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                        onchange="window.location.href='{{ route('uploads.show', $upload) }}?status=' + this.value">
+                        onchange="applyFilter('esl', this.value)">
+                        <option value="">Todas las etiquetas</option>
+                        <option value="vinculados" {{ request('esl') == 'vinculados' ? 'selected' : '' }}>Con etiqueta ESL</option>
+                        <option value="sin_vincular" {{ request('esl') == 'sin_vincular' ? 'selected' : '' }}>Sin etiqueta ESL</option>
+                    </select>
+
+                    <select
+                        class="rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                        onchange="applyFilter('status', this.value)">
                         <option value="">Todos los estados</option>
                         <option value="success" {{ request('status') == 'success' ? 'selected' : '' }}>Exitosos</option>
                         <option value="failed" {{ request('status') == 'failed' ? 'selected' : '' }}>Con errores</option>
@@ -140,7 +181,7 @@
 
                     <select
                         class="rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                        onchange="window.location.href='{{ route('uploads.show', $upload) }}?action=' + this.value">
+                        onchange="applyFilter('action', this.value)">
                         <option value="">Todas las acciones</option>
                         <option value="created" {{ request('action') == 'created' ? 'selected' : '' }}>Creados</option>
                         <option value="updated" {{ request('action') == 'updated' ? 'selected' : '' }}>Actualizados</option>
@@ -148,11 +189,27 @@
                     </select>
                 </div>
 
+                <script>
+                function applyFilter(key, value) {
+                    const params = new URLSearchParams(window.location.search);
+                    if (value) {
+                        params.set(key, value);
+                    } else {
+                        params.delete(key);
+                    }
+                    params.delete('page');
+                    window.location.href = '{{ route('uploads.show', $upload) }}?' + params.toString();
+                }
+                </script>
+
                 <!-- Tabla de logs -->
                 <div class="overflow-x-auto"> 
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
+                                <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" title="Etiqueta ESL vinculada">
+                                    ESL
+                                </th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     ID TAG
                                 </th>
@@ -178,12 +235,21 @@
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             @forelse($logs as $log)
+                                @php $tagId = $tagMapping[$log->product_variant_id] ?? null; @endphp
                                 <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-4 text-center whitespace-nowrap">
+                                        @if($tagId)
+                                            <span title="Etiqueta vinculada: {{ $tagId }}" class="inline-flex items-center justify-center">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-500" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fill-rule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                                                </svg>
+                                            </span>
+                                        @else
+                                            <span class="text-gray-300" title="Sin etiqueta vinculada">—</span>
+                                        @endif
+                                    </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-purple-600 font-bold">
                                         {{ $log->product_variant_id ?? 'N/A' }}
-                                        @if($log->product_variant_id)
-                                            {{-- <span class="text-xs text-gray-500">(goodsCode)</span> --}}
-                                        @endif
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
                                         {{ $log->productVariant->cod_barras ?? 'N/A' }}
@@ -269,14 +335,14 @@
                                 </tr>
                                 @if($log->status === 'failed' && $log->error_message)
                                     <tr class="bg-red-50">
-                                        <td colspan="7" class="px-6 py-2 text-sm text-red-600">
+                                        <td colspan="8" class="px-6 py-2 text-sm text-red-600">
                                             <strong>Error:</strong> {{ $log->error_message }}
                                         </td>
                                     </tr>
                                 @endif
                             @empty
                                 <tr>
-                                    <td colspan="7" class="px-6 py-4 text-center text-gray-500">
+                                    <td colspan="8" class="px-6 py-4 text-center text-gray-500">
                                         No se encontraron registros
                                     </td>
                                 </tr>

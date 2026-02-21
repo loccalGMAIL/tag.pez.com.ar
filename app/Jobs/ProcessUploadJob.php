@@ -50,14 +50,10 @@ class ProcessUploadJob implements ShouldQueue
     private function refreshTagsAfterProcessing(TagService $tagService, ERetailService $eRetailService): void
     {
         try {
-            // Obtener variant IDs con cambios de precio o barcode
+            // Obtener variant IDs de todos los productos procesados exitosamente
             $changedVariantIds = UploadProcessLog::where('upload_id', $this->upload->id)
                 ->where('status', 'success')
                 ->whereIn('action', ['created', 'updated'])
-                ->where(function ($query) {
-                    $query->where('price_changed', true)
-                          ->orWhere('barcode_changed', true);
-                })
                 ->with('productVariant')
                 ->get()
                 ->pluck('productVariant.id')
@@ -67,13 +63,13 @@ class ProcessUploadJob implements ShouldQueue
                 ->toArray();
 
             if (empty($changedVariantIds)) {
-                Log::info("ProcessUploadJob: No hay variantes con cambios para refrescar etiquetas", [
+                Log::info("ProcessUploadJob: No hay variantes procesadas para refrescar etiquetas", [
                     'upload_id' => $this->upload->id
                 ]);
                 return;
             }
 
-            Log::info("ProcessUploadJob: Buscando Tag IDs para variantes con cambios", [
+            Log::info("ProcessUploadJob: Buscando Tag IDs para variantes procesadas", [
                 'upload_id' => $this->upload->id,
                 'variant_ids_count' => count($changedVariantIds)
             ]);
@@ -95,6 +91,8 @@ class ProcessUploadJob implements ShouldQueue
 
             // Refrescar en bloques de 50
             $result = $eRetailService->refreshTagsInBatches($tagIds, $this->upload->shop_code);
+
+            $this->upload->update(['tags_refreshed' => $result['exitosos'] ?? 0]);
 
             Log::info("ProcessUploadJob: Refresh de etiquetas completado", [
                 'upload_id' => $this->upload->id,

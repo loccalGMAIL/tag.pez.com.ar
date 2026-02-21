@@ -36,7 +36,8 @@ class Upload extends Model
         // Usuario y configuración
         'user_id',
         'shop_code',
-        'error_message'
+        'error_message',
+        'tags_refreshed',
     ];
 
     protected $casts = [
@@ -51,6 +52,7 @@ class Upload extends Model
         'skipped_products' => 'integer',
         'total_variants_processed' => 'integer',
         'price_changes_recorded' => 'integer',
+        'tags_refreshed' => 'integer',
         'user_id' => 'integer',
     ];
 

@@ -7,7 +7,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
 
-    <title>Iniciar Sesión - ELS Retail Updater</title>
+    <title>Iniciar Sesión - ESL Retail Updater</title>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
@@ -85,7 +85,7 @@
                     <i class="fas fa-tags text-3xl text-white"></i>
                 </div>
                 <h2 class="text-4xl font-bold text-white mb-1">
-                    ELS Retail Updater
+                    ESL Retail Updater
                 </h2>
 
                 <p class="text-xl text-white text-opacity-90 mt-2">

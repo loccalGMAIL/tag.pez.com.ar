@@ -126,19 +126,40 @@ class UploadController extends Controller
 public function show(Upload $upload)
 {
     try {
-        // 🔥 USAR UploadProcessLog en lugar de ProductUpdateLog
-        $logs = UploadProcessLog::where('upload_id', $upload->id)
-            ->with(['productVariant.product'])
-            ->orderBy('created_at', 'desc')
-            ->paginate(20);
+        // Obtener mapeo completo variantId → tagId para todos los productos del upload
+        $allVariantIds = UploadProcessLog::where('upload_id', $upload->id)
+            ->whereNotNull('product_variant_id')
+            ->pluck('product_variant_id')
+            ->unique()
+            ->values()
+            ->toArray();
 
-        // 🔥 USAR el servicio especializado para estadísticas
+        $tagMapping = [];
+        if (!empty($allVariantIds)) {
+            $tagService = app(TagService::class);
+            $tagMapping = $tagService->getTagMappingByGoodsCodes($allVariantIds, $upload->shop_code);
+        }
+
+        // Construir query con filtros
+        $logsQuery = UploadProcessLog::where('upload_id', $upload->id)
+            ->with(['productVariant.product'])
+            ->orderBy('created_at', 'desc');
+
+        if (request('status')) {
+            $logsQuery->where('status', request('status'));
+        }
+        if (request('action')) {
+            $logsQuery->where('action', request('action'));
+        }
+        if (request('esl') === 'vinculados') {
+            $logsQuery->whereIn('product_variant_id', array_keys($tagMapping) ?: [0]);
+        } elseif (request('esl') === 'sin_vincular') {
+            $logsQuery->whereNotIn('product_variant_id', array_keys($tagMapping) ?: [0]);
+        }
+
+        $logs = $logsQuery->paginate(20)->withQueryString();
+
         $statsFromService = $this->uploadLogService->getUploadStats($upload->id);
-        
-        // 🔥 DEBUG: Ver qué devuelve el servicio
-        \Log::info('Stats from service:', $statsFromService);
-        
-        // 🔥 MAPEAR con valores por defecto para evitar errores
         $statistics = [
             'total' => $statsFromService['total_logs'] ?? 0,
             'procesados' => ($statsFromService['success'] ?? 0) + ($statsFromService['failed'] ?? 0),
@@ -148,19 +169,15 @@ public function show(Upload $upload)
             'errores' => $statsFromService['failed'] ?? 0,
             'progreso' => $statsFromService['success_rate'] ?? 0
         ];
-        
-        // 🔥 DEBUG: Ver qué se pasa a la vista
-        \Log::info('Stats for view:', $statistics);
-        
-        return view('uploads.show', compact('upload', 'logs', 'statistics'));
-        
+
+        return view('uploads.show', compact('upload', 'logs', 'statistics', 'tagMapping'));
+
     } catch (\Exception $e) {
         \Log::error('Error in show method:', [
             'error' => $e->getMessage(),
             'upload_id' => $upload->id
         ]);
-        
-        // 🔥 FALLBACK: Estadísticas vacías si hay error
+
         $statistics = [
             'total' => 0,
             'procesados' => 0,
@@ -170,10 +187,11 @@ public function show(Upload $upload)
             'errores' => 0,
             'progreso' => 0
         ];
-        
-        $logs = collect([]); // Lista vacía
-        
-        return view('uploads.show', compact('upload', 'logs', 'statistics'))
+
+        $logs = collect([]);
+        $tagMapping = [];
+
+        return view('uploads.show', compact('upload', 'logs', 'statistics', 'tagMapping'))
             ->with('error', 'Error cargando estadísticas: ' . $e->getMessage());
     }
 }
@@ -212,19 +230,15 @@ public function show(Upload $upload)
     }
     
     /**
-     * 🔥 REFRESCAR ETIQUETAS - OPTIMIZADO: Solo productos con cambios de precio/barcode
+     * REFRESCAR ETIQUETAS - Todos los productos procesados exitosamente del upload
      */
     public function refreshTags(Upload $upload)
     {
         try {
-            // 🔥 Solo variants con cambios de precio o barcode
+            // Todos los variants procesados exitosamente
             $changedVariantIds = UploadProcessLog::where('upload_id', $upload->id)
                 ->where('status', 'success')
                 ->whereIn('action', ['created', 'updated'])
-                ->where(function($query) {
-                    $query->where('price_changed', true)
-                          ->orWhere('barcode_changed', true);
-                })
                 ->with('productVariant')
                 ->get()
                 ->pluck('productVariant.id')
@@ -236,7 +250,7 @@ public function show(Upload $upload)
             if (empty($changedVariantIds)) {
                 return redirect()
                     ->back()
-                    ->with('info', 'No hay productos con cambios de precio o código de barras para actualizar');
+                    ->with('info', 'No hay productos procesados para actualizar etiquetas');
             }
 
             Log::info("Buscando Tag IDs para variantes con cambios", [

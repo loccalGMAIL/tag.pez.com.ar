@@ -62,7 +62,7 @@
                     </div>
 
                     <!-- Submit buttons -->
-                    <div class="flex items-center justify-end space-x-3">
+                    <div class="flex flex-col-reverse sm:flex-row items-center justify-end gap-3">
                         <a href="{{ route('uploads.index') }}"
                             class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
                             Cancelar

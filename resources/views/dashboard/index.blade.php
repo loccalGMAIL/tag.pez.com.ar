@@ -8,7 +8,7 @@
     <div class="mb-8">
         <h1 class="text-3xl font-bold text-gray-900">Dashboard ESL Retail</h1>
         <p class="mt-2 text-gray-600">Monitoreo en tiempo real de etiquetas, productos y estaciones base</p>
-        <div class="mt-4 flex items-center space-x-4">
+        <div class="mt-4 flex flex-wrap items-center gap-3">
             <div class="flex items-center text-sm text-gray-500">
                 <i class="fas fa-clock mr-2"></i>
                 Última actualización: <span id="last-updated" class="ml-1 font-medium">{{ $metrics['last_updated'] ?? 'N/A' }}</span>

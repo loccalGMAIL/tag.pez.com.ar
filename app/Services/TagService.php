@@ -302,6 +302,43 @@ class TagService
     }
 
     /**
+     * Obtener mapeo goodsCode → tagId para un conjunto de variantes.
+     * Retorna array asociativo: ['goodsCode' => 'tagId', ...]
+     */
+    public function getTagMappingByGoodsCodes(array $goodsCodes, ?string $shopCode = null): array
+    {
+        if (empty($goodsCodes)) {
+            return [];
+        }
+
+        try {
+            $shopCode = $shopCode ?? $this->getShopCode();
+            $goodsCodesStr = array_map('strval', $goodsCodes);
+
+            $rows = DB::connection('eretail')
+                ->table('Goods')
+                ->join('GoodsBind', 'Goods.Id', '=', 'GoodsBind.GoodsId')
+                ->join('Tag', 'GoodsBind.DeviceId', '=', 'Tag.Id')
+                ->whereIn('Goods.GoodsCode', $goodsCodesStr)
+                ->where('Tag.ShopCode', $shopCode)
+                ->where('Tag.IsDeleted', 0)
+                ->select('Goods.GoodsCode as goods_code', 'Tag.Id as tag_id')
+                ->get();
+
+            $mapping = [];
+            foreach ($rows as $row) {
+                $mapping[$row->goods_code] = $row->tag_id;
+            }
+
+            return $mapping;
+
+        } catch (\Exception $e) {
+            Log::error('Error obteniendo mapeo Tag por GoodsCodes: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
      * Obtener estadísticas generales de etiquetas
      */
     public function getTagStats(): array

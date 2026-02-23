@@ -109,6 +109,7 @@ Route::middleware(['auth', 'tenant'])->group(function () {
     Route::get('tags', [TagController::class, 'index'])->name('tags.index');
     Route::get('tags/data', [TagController::class, 'getData'])->name('tags.data');
     Route::post('tags/refresh-multiple', [TagController::class, 'refreshMultiple'])->name('tags.refresh.multiple');
+    Route::post('tags/led-flash', [TagController::class, 'flashLed'])->name('tags.led.flash');
     Route::get('tags/{tagId}', [TagController::class, 'show'])->name('tags.show');
     Route::post('tags/{tagId}/refresh', [TagController::class, 'refresh'])->name('tags.refresh');
 

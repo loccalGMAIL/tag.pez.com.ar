@@ -17,7 +17,7 @@
                 Detalle de Etiqueta
             </h1>
         </div>
-        <div class="flex space-x-3">
+        <div class="flex flex-wrap gap-2">
             <button onclick="refreshTag()" id="refreshBtn"
                 class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
                 <i class="fas fa-sync-alt mr-2"></i>

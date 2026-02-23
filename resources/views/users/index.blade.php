@@ -5,7 +5,7 @@
 @section('content')
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <!-- Header -->
-    <div class="flex justify-between items-center mb-6">
+    <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
         <div>
             <h1 class="text-2xl font-bold text-gray-900">Gestión de Usuarios</h1>
             <p class="text-gray-600">Administra los usuarios del sistema</p>

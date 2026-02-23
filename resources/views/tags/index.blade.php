@@ -13,11 +13,16 @@
             </h1>
             <p class="text-gray-600 mt-1">Visualiza y gestiona las etiquetas ESL</p> --}}
         </div>
-        <button onclick="refreshSelected()" id="refreshSelectedBtn" disabled
-            class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded-lg transition duration-300">
-            <i class="fas fa-sync-alt mr-2"></i>
-            Refrescar Seleccionadas
-        </button>
+        <div class="flex flex-wrap gap-2">
+            <button onclick="refreshSelected()" id="refreshSelectedBtn" disabled
+                class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                <i class="fas fa-sync-alt mr-2"></i> Refrescar Seleccionadas
+            </button>
+            <button onclick="openLedModal()" id="ledFlashBtn" disabled
+                class="bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                <i class="fas fa-lightbulb mr-2"></i> Flash LED
+            </button>
+        </div>
     </div>
 
     <!-- Estadísticas -->
@@ -81,8 +86,8 @@
 
     <!-- Filtros -->
     <div class="bg-white rounded-lg shadow p-4 mb-6">
-        <div class="flex flex-wrap gap-4 items-center">
-            <div class="flex-1 min-w-64">
+        <div class="flex flex-wrap gap-3 items-center">
+            <div class="flex-1 min-w-0 w-full sm:min-w-64">
                 <input type="text" id="searchInput" placeholder="Buscar por ID, código o nombre de producto..."
                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
@@ -152,6 +157,72 @@
             </button>
             <button onclick="confirmRefresh()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
                 Confirmar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal LED Flash -->
+<div id="ledModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <h3 class="text-lg font-bold text-gray-800 mb-2">
+            <i class="fas fa-lightbulb text-yellow-500 mr-2"></i> Señal LED Flash
+        </h3>
+        <p class="text-sm text-gray-500 mb-5" id="ledModalSubtext"></p>
+
+        <!-- Color selector -->
+        <div class="mb-5">
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Color del flash</label>
+            <div class="flex gap-3">
+                <label class="flex-1 cursor-pointer">
+                    <input type="radio" name="ledColor" value="R" class="sr-only peer" id="colorR">
+                    <div class="flex items-center justify-center gap-2 border-2 rounded-lg py-3 px-4
+                                border-gray-200 peer-checked:border-red-500 peer-checked:bg-red-50 hover:border-red-300 transition">
+                        <span class="inline-block w-4 h-4 rounded-full bg-red-500"></span>
+                        <span class="font-medium text-gray-700">Rojo</span>
+                    </div>
+                </label>
+                <label class="flex-1 cursor-pointer">
+                    <input type="radio" name="ledColor" value="G" class="sr-only peer" id="colorG" checked>
+                    <div class="flex items-center justify-center gap-2 border-2 rounded-lg py-3 px-4
+                                border-gray-200 peer-checked:border-green-500 peer-checked:bg-green-50 hover:border-green-300 transition">
+                        <span class="inline-block w-4 h-4 rounded-full bg-green-500"></span>
+                        <span class="font-medium text-gray-700">Verde</span>
+                    </div>
+                </label>
+                <label class="flex-1 cursor-pointer">
+                    <input type="radio" name="ledColor" value="B" class="sr-only peer" id="colorB">
+                    <div class="flex items-center justify-center gap-2 border-2 rounded-lg py-3 px-4
+                                border-gray-200 peer-checked:border-blue-500 peer-checked:bg-blue-50 hover:border-blue-300 transition">
+                        <span class="inline-block w-4 h-4 rounded-full bg-blue-500"></span>
+                        <span class="font-medium text-gray-700">Azul</span>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <!-- Duration -->
+        <div class="mb-6">
+            <label for="ledTimes" class="block text-sm font-semibold text-gray-700 mb-2">
+                Duración (segundos)
+            </label>
+            <div class="flex items-center gap-3">
+                <input type="number" id="ledTimes" value="5" min="1" max="60"
+                    class="w-28 px-3 py-2 border border-gray-300 rounded-lg text-center text-lg font-bold
+                           focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                <span class="text-sm text-gray-500">Rango: 1 a 60 segundos</span>
+            </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="flex justify-end space-x-4">
+            <button onclick="closeLedModal()"
+                class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                Cancelar
+            </button>
+            <button onclick="confirmLedFlash()"
+                class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition font-semibold">
+                <i class="fas fa-lightbulb mr-2"></i> Enviar Flash
             </button>
         </div>
     </div>
@@ -277,10 +348,16 @@ function renderTable() {
                 ${tag.last_recv_time ? formatDate(tag.last_recv_time) : 'Sin datos'}
             </td>
             <td class="px-4 py-3">
-                <button onclick="refreshTag('${tag.tag_id}')"
-                    class="text-blue-600 hover:text-blue-800 transition" title="Refrescar etiqueta">
-                    <i class="fas fa-sync-alt"></i>
-                </button>
+                <div class="flex items-center gap-3">
+                    <button onclick="refreshTag('${tag.tag_id}')"
+                        class="text-blue-600 hover:text-blue-800 transition" title="Refrescar etiqueta">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <button onclick="openLedModal('${tag.tag_id}')"
+                        class="text-yellow-500 hover:text-yellow-700 transition" title="Señal LED flash">
+                        <i class="fas fa-lightbulb"></i>
+                    </button>
+                </div>
             </td>
         </tr>
     `).join('');
@@ -333,8 +410,9 @@ function updateSelection() {
     selectedTags = Array.from(document.querySelectorAll('.tag-checkbox:checked'))
         .map(cb => cb.dataset.tagId);
 
-    const btn = document.getElementById('refreshSelectedBtn');
-    btn.disabled = selectedTags.length === 0;
+    const hasSelection = selectedTags.length > 0;
+    document.getElementById('refreshSelectedBtn').disabled = !hasSelection;
+    document.getElementById('ledFlashBtn').disabled = !hasSelection;
 
     // Update select all checkbox
     const allCheckboxes = document.querySelectorAll('.tag-checkbox');
@@ -434,6 +512,65 @@ function showAlert(type, message) {
     setTimeout(() => {
         alertDiv.remove();
     }, 4000);
+}
+
+let pendingLedTagIds = [];
+
+function openLedModal(tagId = null) {
+    if (tagId !== null) {
+        pendingLedTagIds = [tagId];
+        document.getElementById('ledModalSubtext').textContent = 'Se enviará una señal a la etiqueta: ' + tagId;
+    } else {
+        if (selectedTags.length === 0) return;
+        pendingLedTagIds = [...selectedTags];
+        document.getElementById('ledModalSubtext').textContent =
+            `Se enviará una señal a ${pendingLedTagIds.length} etiqueta(s) seleccionada(s).`;
+    }
+    document.getElementById('colorG').checked = true;
+    document.getElementById('ledTimes').value = 5;
+    document.getElementById('ledModal').classList.remove('hidden');
+    document.getElementById('ledModal').classList.add('flex');
+}
+
+function closeLedModal() {
+    document.getElementById('ledModal').classList.add('hidden');
+    document.getElementById('ledModal').classList.remove('flex');
+    pendingLedTagIds = [];
+}
+
+function confirmLedFlash() {
+    const rgb   = document.querySelector('input[name="ledColor"]:checked')?.value;
+    const times = parseInt(document.getElementById('ledTimes').value, 10);
+
+    if (!rgb) { showAlert('error', 'Selecciona un color'); return; }
+    if (isNaN(times) || times < 1 || times > 60) {
+        showAlert('error', 'La duración debe estar entre 1 y 60 segundos'); return;
+    }
+    if (pendingLedTagIds.length === 0) { closeLedModal(); return; }
+
+    const btn = document.querySelector('#ledModal button[onclick="confirmLedFlash()"]');
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Enviando...';
+    btn.disabled = true;
+
+    fetch('{{ route('tags.led.flash') }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+        body: JSON.stringify({ tag_ids: pendingLedTagIds, rgb, times })
+    })
+    .then(r => r.json())
+    .then(data => {
+        closeLedModal();
+        showAlert(data.success ? 'success' : 'error', data.message);
+    })
+    .catch(() => {
+        closeLedModal();
+        showAlert('error', 'Error de conexión al enviar señal LED');
+    })
+    .finally(() => {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+    });
 }
 </script>
 @endsection

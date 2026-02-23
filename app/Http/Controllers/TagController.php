@@ -169,4 +169,58 @@ class TagController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Enviar señal LED flash a una o varias etiquetas
+     */
+    public function flashLed(Request $request)
+    {
+        try {
+            $tagIds = $request->input('tag_ids', []);
+            $rgb    = strtoupper($request->input('rgb', 'G'));
+            $times  = (int) $request->input('times', 5);
+
+            if (empty($tagIds)) {
+                return response()->json(['success' => false, 'message' => 'No se seleccionaron etiquetas'], 400);
+            }
+            if (!in_array($rgb, ['R', 'G', 'B'], true)) {
+                return response()->json(['success' => false, 'message' => 'Color inválido. Use R, G o B.'], 400);
+            }
+            if ($times < 1 || $times > 60) {
+                return response()->json(['success' => false, 'message' => 'La duración debe estar entre 1 y 60 segundos.'], 400);
+            }
+
+            $this->eRetailService->login();
+            $result = $this->eRetailService->ledFlashInBatches($tagIds, $rgb, $times);
+
+            $labels = ['R' => 'rojo', 'G' => 'verde', 'B' => 'azul'];
+            $label  = $labels[$rgb] ?? $rgb;
+
+            if ($result['fallidos'] === 0) {
+                return response()->json([
+                    'success'  => true,
+                    'message'  => "Señal LED {$label} enviada a {$result['exitosos']} etiqueta(s) por {$times} segundo(s)",
+                    'exitosos' => $result['exitosos'],
+                    'fallidos' => 0,
+                    'batches'  => $result['batches'],
+                ]);
+            }
+
+            if ($result['exitosos'] > 0) {
+                return response()->json([
+                    'success'  => true,
+                    'message'  => "Señal LED {$label} parcial: {$result['exitosos']} exitosas, {$result['fallidos']} fallidas",
+                    'exitosos' => $result['exitosos'],
+                    'fallidos' => $result['fallidos'],
+                    'batches'  => $result['batches'],
+                ]);
+            }
+
+            return response()->json(['success' => false, 'message' => 'Error al enviar la señal LED a todas las etiquetas'], 500);
+
+        } catch (\Exception $e) {
+            Log::error("Error en flashLed: " . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+        }
+    }
 }

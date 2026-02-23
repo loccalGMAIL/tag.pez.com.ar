@@ -15,7 +15,7 @@
             <!-- Resumen -->
             <div class="mb-8">
                 <h2 class="text-xl font-semibold mb-4">Resumen General</h2>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <p><strong>Archivo:</strong> {{ $upload->original_filename }}</p>
                         <p><strong>Fecha de carga:</strong> {{ $upload->created_at->format('d/m/Y H:i') }}</p>
@@ -297,7 +297,7 @@
                 <div class="mb-8">
                     <h2 class="text-xl font-semibold mb-4">Información Técnica</h2>
                     <div class="bg-gray-50 p-4 rounded-lg">
-                        <div class="grid grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <h3 class="font-medium text-gray-700">Estadísticas de Procesamiento</h3>
                                 <ul class="mt-2 text-sm text-gray-600">
@@ -321,7 +321,7 @@
             @endif
 
             <!-- Acciones -->
-            <div class="flex justify-center space-x-4 mt-8">
+            <div class="flex flex-wrap justify-center gap-3 mt-8">
                 <a href="{{ route('uploads.show', $upload) }}"
                     class="bg-blue-500 text-white px-6 py-3 rounded hover:bg-blue-600">
                     Ver Detalle Completo

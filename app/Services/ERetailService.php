@@ -629,4 +629,84 @@ public function __construct()
             throw new ERetailException('Error al refrescar etiquetas: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Enviar señal LED flash a un bloque de tag IDs
+     */
+    public function sendLedFlash(array $tagIds, string $rgb, int $times, int $ledType = 1, $shopCode = null): bool
+    {
+        $shopCode = $shopCode ?? $this->config['default_shop_code'];
+
+        try {
+            Log::info('Enviando señal LED flash', [
+                'tag_ids_count' => count($tagIds),
+                'rgb'           => $rgb,
+                'times'         => $times,
+                'led_type'      => $ledType,
+                'shop_code'     => $shopCode,
+            ]);
+
+            $response = $this->authenticatedRequest('POST', '/api/esl/tag/led', [
+                'json' => [
+                    'shopCode' => $shopCode,
+                    'rgb'      => $rgb,
+                    'times'    => $times,
+                    'idList'   => $tagIds,
+                    'ledType'  => $ledType,
+                ]
+            ]);
+
+            $code = $response['code'] ?? $response['value']['code'] ?? null;
+            $message = $response['message'] ?? $response['value']['message'] ?? 'Sin mensaje';
+
+            if ($code === 0) {
+                Log::info('Señal LED enviada exitosamente', compact('rgb', 'times', 'message'));
+                return true;
+            }
+
+            Log::error('Error enviando señal LED', ['code' => $code, 'message' => $message]);
+            return false;
+
+        } catch (GuzzleException $e) {
+            Log::error('Error HTTP enviando señal LED: ' . $e->getMessage());
+            throw new ERetailException('Error al enviar señal LED: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Enviar señal LED flash en bloques (batches)
+     */
+    public function ledFlashInBatches(array $tagIds, string $rgb, int $times, int $batchSize = 50, $shopCode = null): array
+    {
+        $chunks   = array_chunk($tagIds, $batchSize);
+        $total    = count($tagIds);
+        $exitosos = 0;
+        $fallidos = 0;
+        $batches  = count($chunks);
+
+        Log::info("Enviando LED flash en {$batches} bloque(s) de {$batchSize}", [
+            'total' => $total, 'rgb' => $rgb, 'times' => $times,
+        ]);
+
+        foreach ($chunks as $i => $chunk) {
+            try {
+                $ok = $this->sendLedFlash($chunk, $rgb, $times, 1, $shopCode);
+                if ($ok) {
+                    $exitosos += count($chunk);
+                } else {
+                    $fallidos += count($chunk);
+                }
+            } catch (\Exception $e) {
+                Log::error("Error en bloque LED " . ($i + 1) . ": " . $e->getMessage());
+                $fallidos += count($chunk);
+            }
+        }
+
+        return [
+            'total_enviados' => $total,
+            'exitosos'       => $exitosos,
+            'fallidos'       => $fallidos,
+            'batches'        => $batches,
+        ];
+    }
 }

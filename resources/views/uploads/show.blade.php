@@ -12,7 +12,7 @@
                     <h1 class="text-3xl font-bold text-gray-900">Upload #{{ $upload->id }}</h1>
                     <p class="text-gray-600">{{ $upload->original_filename }}</p>
                 </div>
-                <div class="flex space-x-4">
+                <div class="flex flex-wrap gap-2">
                     <a href="{{ route('uploads.download', $upload) }}"
                         class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
                         Descargar Original
@@ -161,7 +161,7 @@
                 <h3 class="text-lg font-medium mb-4">Detalle de Productos</h3>
 
                 <!-- Filtros -->
-                <div class="mb-4 flex space-x-4">
+                <div class="mb-4 flex flex-wrap gap-3">
                     <select
                         class="rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
                         onchange="applyFilter('esl', this.value)">

@@ -13,7 +13,7 @@
             </h1>
             <p class="text-gray-600 mt-1">Visualiza y gestiona las etiquetas ESL</p> --}}
         </div>
-        <div class="flex gap-2">
+        <div class="flex flex-wrap gap-2">
             <button onclick="refreshSelected()" id="refreshSelectedBtn" disabled
                 class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded-lg transition duration-300">
                 <i class="fas fa-sync-alt mr-2"></i> Refrescar Seleccionadas
@@ -86,8 +86,8 @@
 
     <!-- Filtros -->
     <div class="bg-white rounded-lg shadow p-4 mb-6">
-        <div class="flex flex-wrap gap-4 items-center">
-            <div class="flex-1 min-w-64">
+        <div class="flex flex-wrap gap-3 items-center">
+            <div class="flex-1 min-w-0 w-full sm:min-w-64">
                 <input type="text" id="searchInput" placeholder="Buscar por ID, código o nombre de producto..."
                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Upload;
@@ -9,9 +10,10 @@ use App\Models\ProductVariant;
 
 class UploadProcessLog extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToTenant;
 
     protected $fillable = [
+        'organization_id',
         'upload_id',
         'product_variant_id',
         'action',

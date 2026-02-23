@@ -2,17 +2,20 @@
 
 namespace App\Jobs;
 
+use App\Models\Organization;
 use App\Models\Upload;
 use App\Models\UploadProcessLog;
-use App\Services\ExcelProcessorService;
 use App\Services\ERetailService;
+use App\Services\ExcelProcessorService;
 use App\Services\TagService;
+use App\Services\TenantManager;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use App\Services\ActivityLogger;
 
 class ProcessUploadJob implements ShouldQueue
 {
@@ -23,25 +26,49 @@ class ProcessUploadJob implements ShouldQueue
 
     protected Upload $upload;
     protected string $filePath;
+    protected ?int $organizationId;
 
     public function __construct(Upload $upload, string $filePath)
     {
         $this->upload = $upload;
         $this->filePath = $filePath;
+        $this->organizationId = $upload->organization_id;
     }
 
-    public function handle(ExcelProcessorService $processor, TagService $tagService, ERetailService $eRetailService): void
+    public function handle(): void
     {
-        // Aumentar límites para archivos grandes (18,000+ filas)
+        // CRÍTICO: restaurar contexto de tenant en el worker.
+        // El worker no pasa por middleware HTTP, por lo que se debe configurar manualmente.
+        if ($this->organizationId) {
+            $organization = Organization::find($this->organizationId);
+            if ($organization) {
+                app(TenantManager::class)->setTenant($organization);
+            }
+        }
+
+        // Resolver servicios DESPUÉS de setear el tenant para que tomen las credenciales correctas
+        $processor    = app(ExcelProcessorService::class);
+        $tagService   = app(TagService::class);
+        $eRetailService = app(ERetailService::class);
+
         ini_set('memory_limit', '512M');
         set_time_limit(600);
 
-        Log::info("ProcessUploadJob: Iniciando procesamiento del upload {$this->upload->id}");
+        Log::info("ProcessUploadJob: Iniciando procesamiento del upload {$this->upload->id}", [
+            'organization_id' => $this->organizationId,
+        ]);
 
         // 1. Procesar el Excel
         $processor->processFile($this->filePath, $this->upload->id);
 
         Log::info("ProcessUploadJob: Procesamiento Excel completado, iniciando refresh de etiquetas");
+
+        // Log de éxito de procesamiento
+        $uploadRefreshed = $this->upload->fresh();
+        ActivityLogger::upload('upload_processed', "Upload procesado: {$this->upload->original_filename}", $this->upload, [
+            'total_products'   => $uploadRefreshed->total_products,
+            'processed'        => $uploadRefreshed->processed_products,
+        ]);
 
         // 2. Refresh automático de etiquetas para productos con cambios
         $this->refreshTagsAfterProcessing($tagService, $eRetailService);
@@ -99,6 +126,12 @@ class ProcessUploadJob implements ShouldQueue
                 'resultado' => $result
             ]);
 
+            ActivityLogger::upload('tags_refreshed', "Refresh automático: {$result['exitosos']} etiquetas actualizadas", $this->upload, [
+                'tags_refreshed' => $result['exitosos'] ?? 0,
+                'fallidos'       => $result['fallidos'] ?? 0,
+                'batches'        => $result['batches'] ?? 0,
+            ]);
+
         } catch (\Exception $e) {
             // No relanzar: el procesamiento Excel ya terminó bien,
             // un error en el refresh no debería marcar el job como fallido
@@ -118,6 +151,11 @@ class ProcessUploadJob implements ShouldQueue
         $this->upload->update([
             'status' => 'failed',
             'error_message' => $exception->getMessage()
+        ]);
+
+        ActivityLogger::upload('upload_failed', "Upload fallido: {$this->upload->original_filename}", $this->upload, [
+            'error' => $exception->getMessage(),
+            'trace' => substr($exception->getTraceAsString(), 0, 500),
         ]);
     }
 }

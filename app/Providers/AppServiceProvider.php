@@ -11,21 +11,23 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        // 🔥 SERVICIOS PRINCIPALES - NUEVA ARQUITECTURA
-        
-        // ERetailService - Comunicación con eRetail
-        $this->app->singleton(\App\Services\ERetailService::class, function ($app) {
+        // TenantManager: singleton para mantener el tenant activo durante el request/job
+        $this->app->singleton(\App\Services\TenantManager::class, function ($app) {
+            return new \App\Services\TenantManager();
+        });
+
+        // ERetailService: bind (no singleton) para que se instancie fresco por cada resolución,
+        // tomando las credenciales del tenant activo en ese momento
+        $this->app->bind(\App\Services\ERetailService::class, function ($app) {
             return new \App\Services\ERetailService();
         });
 
-        // ExcelProcessorService - Procesamiento de archivos Excel
-        $this->app->singleton(\App\Services\ExcelProcessorService::class, function ($app) {
+        // ExcelProcessorService: bind (depende de ERetailService)
+        $this->app->bind(\App\Services\ExcelProcessorService::class, function ($app) {
             return new \App\Services\ExcelProcessorService(
                 $app->make(\App\Services\ERetailService::class)
             );
         });
-
-        // 🔥 SERVICIOS ESPECIALIZADOS - NUEVA ARQUITECTURA
 
         // ProductService - Gestión de productos maestros
         $this->app->singleton(\App\Services\ProductService::class, function ($app) {
@@ -36,11 +38,6 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(\App\Services\ProductVariantService::class, function ($app) {
             return new \App\Services\ProductVariantService();
         });
-
-        // PriceHistoryService - Gestión de histórico de precios
-        // $this->app->singleton(\App\Services\PriceHistoryService::class, function ($app) {
-        //     return new \App\Services\PriceHistoryService();
-        // });
 
         // UploadLogService - Gestión de logs de procesamiento
         $this->app->singleton(\App\Services\UploadLogService::class, function ($app) {

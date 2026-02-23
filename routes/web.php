@@ -11,6 +11,11 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\TagController;
+use App\Http\Controllers\Admin\AdminDashboardController;
+use App\Http\Controllers\Admin\OrganizationController;
+use App\Http\Controllers\Admin\AdminUserController;
+use App\Http\Controllers\Admin\AdminUploadController;
+use App\Http\Controllers\Admin\ActivityLogController;
 
 // Queue worker vía HTTP (reemplazo de cron)
 Route::get('/__run_queue', function () {
@@ -45,8 +50,37 @@ Route::get('/', function () {
     return redirect()->route('login');
 })->name('home');
 
-// ✅ Rutas protegidas con middleware auth
-Route::middleware(['auth'])->group(function () {
+// ✅ Panel de super-administración (sin middleware 'tenant', sin scope de org)
+Route::prefix('admin')
+    ->name('admin.')
+    ->middleware(['auth', 'super_admin'])
+    ->group(function () {
+        Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
+
+        Route::resource('organizations', OrganizationController::class);
+        Route::post('organizations/{organization}/activate', [OrganizationController::class, 'activate'])
+            ->name('organizations.activate');
+        Route::post('organizations/{organization}/impersonate', [OrganizationController::class, 'impersonate'])
+            ->name('organizations.impersonate');
+        Route::get('organizations/{organization}/test-db', [OrganizationController::class, 'testDbConnection'])
+            ->name('organizations.test-db');
+        Route::post('impersonate/stop', function () {
+            session()->forget(['impersonating_org', 'impersonating_org_name']);
+            return redirect()->route('admin.organizations.index');
+        })->name('impersonate.stop');
+
+        Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
+        Route::post('users', [AdminUserController::class, 'store'])->name('users.store');
+        Route::put('users/{user}', [AdminUserController::class, 'update'])->name('users.update');
+        Route::delete('users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
+
+        Route::get('uploads', [AdminUploadController::class, 'index'])->name('uploads.index');
+
+        Route::get('logs', [ActivityLogController::class, 'index'])->name('logs');
+    });
+
+// ✅ Rutas protegidas con middleware auth + tenant context
+Route::middleware(['auth', 'tenant'])->group(function () {
     
     // ✅ Rutas del Dashboard
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard.index');

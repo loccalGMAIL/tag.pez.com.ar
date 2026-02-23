@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'Dashboard ELS Retail')
+@section('title', 'Dashboard ESL Retail')
 
 @section('content')
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <!-- Header del Dashboard -->
     <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-900">Dashboard ELS Retail</h1>
+        <h1 class="text-3xl font-bold text-gray-900">Dashboard ESL Retail</h1>
         <p class="mt-2 text-gray-600">Monitoreo en tiempo real de etiquetas, productos y estaciones base</p>
         <div class="mt-4 flex flex-wrap items-center gap-3">
             <div class="flex items-center text-sm text-gray-500">

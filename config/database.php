@@ -62,22 +62,19 @@ return [
             ]) : [],
         ],
 
+        // Conexión eRetail: las credenciales reales se inyectan en runtime por TenantManager.
+        // Este bloque es solo un placeholder; no debe tener credenciales hardcodeadas.
         'eretail' => [
-            'driver' => 'mysql',
-            'host' => env('ERETAIL_DB_HOST', '31.97.248.62'),
-            'port' => env('ERETAIL_DB_PORT', '3306'),
-            'database' => env('ERETAIL_DB_DATABASE', 'TitanDB'),
-            'username' => env('ERETAIL_DB_USERNAME', 'root'),
-            'password' => env('ERETAIL_DB_PASSWORD', 'mypwd'),
-            'charset' => env('ERETAIL_DB_CHARSET', 'utf8mb4'),
-            'collation' => env('ERETAIL_DB_COLLATION', 'utf8mb4_unicode_ci'),
-            'prefix' => '',
-            'prefix_indexes' => true,
-            'strict' => true,
-            'engine' => null,
-            'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
+            'driver'    => 'mysql',
+            'host'      => env('ERETAIL_DB_HOST', ''),
+            'port'      => env('ERETAIL_DB_PORT', '3306'),
+            'database'  => env('ERETAIL_DB_DATABASE', ''),
+            'username'  => env('ERETAIL_DB_USERNAME', ''),
+            'password'  => env('ERETAIL_DB_PASSWORD', ''),
+            'charset'   => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix'    => '',
+            'strict'    => true,
         ],
 
         'mariadb' => [

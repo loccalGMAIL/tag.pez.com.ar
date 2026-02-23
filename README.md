@@ -1,61 +1,159 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# ESL Retail Updater
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Sistema de gestión de Etiquetas Electrónicas de Góndola (ESL) con integración al servidor eRetail.
+Arquitectura SaaS multi-tenant: cada organización tiene su propio servidor eRetail aislado.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Tecnologías
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- **Backend**: Laravel 11 (PHP 8.2+)
+- **Base de datos**: MySQL (shared DB con aislamiento por `organization_id`)
+- **Cola de trabajos**: driver `database` (compatible con Hostinger shared hosting)
+- **Frontend**: Blade + Tailwind CSS + Font Awesome
+- **Procesamiento Excel**: PhpSpreadsheet
+- **HTTP API eRetail**: Guzzle
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## Arquitectura Multi-Tenant
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+El sistema usa un modelo de **base de datos compartida con discriminador por organización**:
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+- Todas las tablas de datos (`uploads`, `products`, `product_variants`, `app_settings`, etc.) tienen columna `organization_id`
+- El trait `BelongsToTenant` aplica un global scope automático en cada query cuando hay un tenant activo
+- `TenantManager` (singleton) mantiene el contexto del tenant por request y sobreescribe la conexión `eretail` en runtime con las credenciales de cada organización
+- El middleware `SetTenantContext` resuelve el tenant a partir del usuario autenticado antes de cada request
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### Flujo de autenticación
 
-## Laravel Sponsors
+```
+Login → AuthController
+  ├── is_super_admin=true → /admin (sin tenant context)
+  └── usuario regular → SetTenantContext middleware → TenantManager::setTenant() → /dashboard
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+### Cola de trabajos
 
-### Premium Partners
+Los workers de cola no pasan por middleware HTTP. `ProcessUploadJob` lleva el `organization_id` y restaura el tenant context al inicio de `handle()`.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+---
 
-## Contributing
+## Módulos
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### Panel de usuario (tenant)
+- **Dashboard**: métricas en tiempo real desde la BD eRetail (etiquetas, productos, APs online)
+- **Uploads**: carga de archivos Excel con procesamiento en cola, progreso en tiempo real
+- **Etiquetas**: listado con DataTable, detalle y refresco individual/masivo vía API eRetail
+- **Configuración**: settings por organización (shop code, plantilla, descuento, etc.)
+- **Usuarios**: gestión de usuarios dentro de la organización
 
-## Code of Conduct
+### Panel de super-admin (`/admin`)
+- **Organizaciones**: CRUD completo con credenciales eRetail (API + BD directa) cifradas
+- **Test de conexión BD**: diagnóstico en vivo de la conectividad por organización
+- **Impersonación**: "Ver como cliente" — accede al dashboard con el tenant de esa org
+- **Usuarios**: gestión cross-tenant (crear, editar, asignar organización)
+- **Uploads**: historial global filtrable por organización, shop code y estado
+- **Logs de actividad**: tabla `activity_logs` con eventos de negocio y errores técnicos; filtros por tipo, nivel, organización y rango de fechas; paginación de 50 registros
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+---
 
-## Security Vulnerabilities
+## Instalación
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### Requisitos
+- PHP 8.2+
+- MySQL 5.7+ / MariaDB 10.3+
+- Composer
+- Node.js + npm (para compilar assets)
 
-## License
+### Pasos
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+# 1. Instalar dependencias
+composer install
+npm install && npm run build
+
+# 2. Configurar entorno
+cp .env.example .env
+php artisan key:generate
+
+# 3. Configurar .env
+#    DB_CONNECTION, DB_HOST, DB_DATABASE, DB_USERNAME, DB_PASSWORD
+
+# 4. Migraciones
+php artisan migrate
+
+# 5. Crear super-admin
+php artisan tinker
+> $u = new App\Models\User();
+> $u->name = 'Admin'; $u->email = 'admin@example.com';
+> $u->password = bcrypt('contraseña'); $u->is_super_admin = true;
+> $u->save();
+```
+
+### Cola de trabajos (Hostinger / shared hosting)
+
+El sistema usa un endpoint HTTP `/__run_queue?key={APP_QUEUE_KEY}` que ejecuta `queue:work --stop-when-empty` después de enviar la respuesta. Configurable vía:
+
+```env
+APP_QUEUE_KEY=clave_secreta
+QUEUE_CONNECTION=database
+```
+
+---
+
+## Variables de entorno relevantes
+
+| Variable | Descripción |
+|---|---|
+| `APP_QUEUE_KEY` | Clave para el endpoint `/__run_queue` |
+| `QUEUE_CONNECTION` | `database` (recomendado para shared hosting) |
+| `ERETAIL_DB_HOST` | Fallback host BD eRetail (normalmente vacío; se configura por org) |
+| `LOG_CHANNEL` | `daily` (rotación diaria, recomendado) |
+| `LOG_DAILY_DAYS` | Días de retención de archivos de log (default: 30) |
+
+Las credenciales eRetail (API y BD) se almacenan **cifradas** en la tabla `organizations` y se inyectan en runtime por `TenantManager`.
+
+---
+
+## Changelog
+
+### v2.0.0 — 2026-02-18
+- Sistema de logs de actividad en base de datos (`activity_logs`)
+- Panel admin `/admin/logs`: tabla con filtros por tipo, nivel, organización y fecha
+- `ActivityLogger`: helper estático con métodos por dominio (auth, upload, tags, eretail, system)
+- Eventos registrados: login/logout/login_failed, upload_created/processed/failed, tags_refreshed, tag_refresh/tags_refresh_multiple/led_flash, eretail_auth_failed/eretail_api_error
+- Rotación diaria de `laravel.log` (`LOG_CHANNEL=daily`, retención 30 días)
+- Conversión completa a arquitectura SaaS multi-tenant
+- Tabla `organizations` con credenciales eRetail (API + DB) cifradas por tenant
+- Aislamiento automático de datos via trait `BelongsToTenant` con global scopes
+- `TenantManager`: gestión de contexto de tenant y override de conexión DB en runtime
+- Panel de super-administración (`/admin`): organizaciones, usuarios, uploads cross-tenant
+- Impersonación de organizaciones desde el panel admin con banner visible
+- Diagnóstico de conexión BD por organización desde el panel admin
+- `ProcessUploadJob` restaura contexto de tenant en workers de cola
+- `ERetailService` lee credenciales del tenant activo (token cache per-tenant)
+- `AppSetting` con cache keys aisladas por tenant
+- Corrección: credenciales hardcodeadas eliminadas de `config/database.php`
+- Corrección de nombre: ELS → ESL en títulos de página
+
+### v1.2.2 — 2026-02-05
+- Actividades recientes del dashboard: resumen por upload en vez de logs individuales
+- Títulos diferenciados por estado de upload
+- Corrección de error de subida en Hostinger
+
+### v1.2.1 — 2026-02-05
+- Queue worker vía ruta HTTP (reemplazo de cron bloqueado en Hostinger)
+- Límite de productos por upload con estado `pending_approval`
+
+### v1.2.0 — 2026-02-03
+- Nuevo módulo de gestión de Etiquetas (Tags) con DataTable
+- Refresco individual y masivo de etiquetas
+
+### v1.1.0 — 2026-02-03
+- Corrección de detección de APs en línea
+- ShopCode desde configuración en lugar de `.env`
+- Sistema de versionado
+
+### v1.0.0 — 2026-01-15
+- Versión inicial: dashboard, uploads Excel, integración API eRetail

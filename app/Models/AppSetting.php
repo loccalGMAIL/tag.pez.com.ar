@@ -2,34 +2,47 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 
 class AppSetting extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToTenant;
 
     protected $fillable = [
+        'organization_id',
         'key',
         'value',
         'description',
         'type'
     ];
 
+    private static function cacheKey(string $key): string
+    {
+        $tenantId = app(\App\Services\TenantManager::class)->getTenantId() ?? 'global';
+        return "setting_{$tenantId}_{$key}";
+    }
+
+    private static function allSettingsCacheKey(): string
+    {
+        $tenantId = app(\App\Services\TenantManager::class)->getTenantId() ?? 'global';
+        return "all_settings_{$tenantId}";
+    }
+
     /**
      * Obtener el valor de una configuración
      */
     public static function get($key, $default = null)
     {
-        return Cache::remember("setting_{$key}", 3600, function () use ($key, $default) {
+        return Cache::remember(static::cacheKey($key), 3600, function () use ($key, $default) {
             $setting = self::where('key', $key)->first();
-            
+
             if (!$setting) {
                 return $default;
             }
 
-            // Convertir según el tipo
             return self::castValue($setting->value, $setting->type);
         });
     }
@@ -44,8 +57,8 @@ class AppSetting extends Model
             ['value' => $value]
         );
 
-        Cache::forget("setting_{$key}");
-        
+        Cache::forget(static::cacheKey($key));
+
         return $setting;
     }
 
@@ -74,11 +87,13 @@ class AppSetting extends Model
     protected static function booted()
     {
         static::saved(function ($setting) {
-            Cache::forget("setting_{$setting->key}");
+            Cache::forget(static::cacheKey($setting->key));
+            Cache::forget(static::allSettingsCacheKey());
         });
 
         static::deleted(function ($setting) {
-            Cache::forget("setting_{$setting->key}");
+            Cache::forget(static::cacheKey($setting->key));
+            Cache::forget(static::allSettingsCacheKey());
         });
     }
 
@@ -87,14 +102,14 @@ class AppSetting extends Model
      */
     public static function getAllAsArray()
     {
-        return Cache::remember('all_settings', 3600, function () {
+        return Cache::remember(static::allSettingsCacheKey(), 3600, function () {
             $settings = [];
-            $allSettings = self::query()->get(); // Cambiado aquí también
-            
+            $allSettings = self::query()->get();
+
             foreach ($allSettings as $setting) {
                 $settings[$setting->key] = self::castValue($setting->value, $setting->type);
             }
-            
+
             return $settings;
         });
     }

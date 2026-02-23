@@ -10,6 +10,7 @@ use App\Services\ExcelProcessorService;
 use App\Services\ERetailService;
 use App\Services\TagService;
 use App\Services\UploadLogService;  // 🔥 NUEVO: Servicio especializado
+use App\Services\ActivityLogger;
 use App\Models\AppSetting;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
@@ -104,6 +105,10 @@ class UploadController extends Controller
             ProcessUploadJob::dispatch($upload, $path);
 
             Log::info("Job despachado para upload {$upload->id}");
+
+            ActivityLogger::upload('upload_created', "Upload creado: {$file->getClientOriginalName()} ({$rowCount} productos)", $upload, [
+                'total_products' => $rowCount,
+            ]);
 
             return redirect()
                 ->route('uploads.show', $upload)
@@ -280,6 +285,12 @@ public function show(Upload $upload)
             $result = $eRetailService->refreshTagsInBatches($tagIds, $upload->shop_code);
 
             if ($result['exitosos'] > 0) {
+                ActivityLogger::upload('upload_tags_manual_refresh', "Refresh manual de etiquetas: {$result['exitosos']} enviadas", $upload, [
+                    'tags_refreshed'  => $result['exitosos'],
+                    'total_enviados'  => $result['total_enviados'],
+                    'batches'         => $result['batches'],
+                ]);
+
                 return redirect()
                     ->back()
                     ->with('success', "Actualización iniciada para {$result['exitosos']} de {$result['total_enviados']} etiquetas en {$result['batches']} bloques");

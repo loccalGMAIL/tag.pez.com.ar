@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'ELS Retail Updater')</title>
+    <title>@yield('title', 'ESL Retail Updater')</title>
     
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
@@ -23,7 +23,7 @@
                     <div class="flex-shrink-0 flex flex-col justify-center">
                         <a href="{{ route('dashboard.index') }}" class="text-xl font-bold text-gray-800 hover:text-blue-600 transition duration-300">
                             <i class="fas fa-tags text-blue-600 mr-2"></i>
-                            ELS Retail Updater
+                            ESL Retail Updater
                         </a>
                         <span style="font-family: Arial, sans-serif; font-size: 10px; color: #9ca3af; margin-left: 28px;">
                             v{{ config('version.major') }}.{{ config('version.minor') }}.{{ config('version.patch') }}
@@ -171,6 +171,27 @@
             </div>
         </div>
     </nav>
+
+    <!-- Banner impersonación (solo visible para super-admin) -->
+    @if(auth()->check() && auth()->user()->is_super_admin && session('impersonating_org'))
+    <div class="bg-purple-700 text-white text-sm py-2 px-4 flex items-center justify-between">
+        <span>
+            <i class="fas fa-eye mr-2"></i>
+            Visualizando como: <strong>{{ session('impersonating_org_name', 'Organización') }}</strong>
+        </span>
+        <div class="flex items-center gap-4">
+            <a href="{{ route('admin.organizations.index') }}" class="underline hover:no-underline text-purple-200">
+                <i class="fas fa-arrow-left mr-1"></i> Volver al panel admin
+            </a>
+            <form method="POST" action="{{ route('admin.impersonate.stop') }}" class="inline">
+                @csrf
+                <button type="submit" class="bg-purple-900 hover:bg-purple-800 px-3 py-1 rounded text-xs">
+                    <i class="fas fa-times mr-1"></i> Salir de la vista
+                </button>
+            </form>
+        </div>
+    </div>
+    @endif
 
     <!-- Alerts -->
     @if(session('success'))

@@ -15,9 +15,9 @@ return [
     |
     */
 
-    'major' => 1,
-    'minor' => 3,
-    'patch' => 2,
+    'major' => 2,
+    'minor' => 0,
+    'patch' => 0,
 
     /*
     |--------------------------------------------------------------------------
@@ -26,7 +26,7 @@ return [
     */
 
     'release_date' => '2026-02-23',
-    'codename' => '',
+    'codename' => 'SaaS',
 
     /*
     |--------------------------------------------------------------------------
@@ -35,16 +35,31 @@ return [
     */
 
     'changelog' => [
+        '2.0.0' => [
+            'date' => '2026-02-23',
+            'changes' => [
+                'Conversión a arquitectura SaaS multi-tenant',
+                'Tabla organizations con credenciales eRetail (API + DB) cifradas por tenant',
+                'Aislamiento automático de datos por organización via global scopes (BelongsToTenant)',
+                'TenantManager: gestión del contexto de tenant y override de conexión DB en runtime',
+                'Panel de super-administración (/admin): organizaciones, usuarios, uploads cross-tenant',
+                'Impersonación de organizaciones desde el panel admin con banner visible',
+                'Diagnóstico de conexión BD por organización desde el panel admin',
+                'ProcessUploadJob restaura contexto de tenant en workers de cola',
+                'ERetailService lee credenciales del tenant activo (token cache per-tenant)',
+                'AppSetting con cache keys aisladas por tenant',
+                'Corrección: credenciales hardcodeadas eliminadas de config/database.php',
+                'Corrección de nombre: ELS → ESL en títulos de página',
+                'Diseño responsivo completo: navbar mobile con Alpine.js, flex-wrap en headers y filtros',
+            ],
+        ],
         '1.3.2' => [
             'date' => '2026-02-23',
             'changes' => [
                 'Diseño responsivo completo para mobile y tablet',
                 'Navbar con hamburger menu (Alpine.js) — la app era inutilizable en mobile',
                 'Menú mobile desplegable con todos los links, usuario y acciones',
-                'Nombre de usuario oculto en desktop < 768px para ahorrar espacio',
-                'Botones de header con flex-wrap en todas las vistas (show, report, create, tags, dashboard, users)',
-                'Filtros de uploads/show y tags/index apilan en mobile',
-                'Grid de resumen en uploads/report pasa a 1 columna en mobile',
+                'Botones de header con flex-wrap en todas las vistas',
                 'Assets de Vite incluidos en el repo (public/build trackeado) para Hostinger',
             ],
         ],
@@ -53,7 +68,6 @@ return [
             'changes' => [
                 'Refresh automático de etiquetas mejorado: muestra resultado en banner informativo',
                 'Tabla de uploads: columna de etiquetas refrescadas con ícono y contador',
-                'Indicador visual de tags actualizados en la vista de detalle de upload',
             ],
         ],
         '1.3.0' => [
@@ -61,7 +75,6 @@ return [
             'changes' => [
                 'Señal LED flash para etiquetas ESL (individual y múltiple)',
                 'Modal de selección de color (rojo, verde, azul) y duración del flash',
-                'Botón Flash LED en toolbar de etiquetas y en acciones por fila',
                 'Integración con endpoint LED de la API eRetail',
             ],
         ],

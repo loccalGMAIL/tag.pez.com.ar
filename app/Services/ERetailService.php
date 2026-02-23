@@ -7,6 +7,7 @@ use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use App\Exceptions\ERetailException;
+use App\Services\ActivityLogger;
 
 class ERetailService
 {
@@ -70,10 +71,20 @@ class ERetailService
                 return true;
             }
 
+            ActivityLogger::eretailError('eretail_auth_failed', 'eRetail auth failed: ' . ($data['message'] ?? 'Unknown error'), [
+                'endpoint'    => '/api/login',
+                'status_code' => $data['code'] ?? null,
+                'message'     => $data['message'] ?? 'Unknown error',
+            ]);
             throw new ERetailException($data['message'] ?? 'Login failed');
 
         } catch (GuzzleException $e) {
             Log::error('eRetail login error: ' . $e->getMessage());
+            ActivityLogger::eretailError('eretail_auth_failed', 'eRetail connection error: ' . $e->getMessage(), [
+                'endpoint'    => '/api/login',
+                'status_code' => $e->getCode(),
+                'message'     => $e->getMessage(),
+            ]);
             throw new ERetailException('Error de conexión con eRetail: ' . $e->getMessage());
         }
     }
@@ -127,6 +138,11 @@ class ERetailService
                 'response_body' => ($e instanceof \GuzzleHttp\Exception\RequestException && $e->getResponse())
                     ? $e->getResponse()->getBody()->getContents()
                     : 'Sin respuesta'
+            ]);
+            ActivityLogger::eretailError('eretail_api_error', 'Error HTTP enviando productos: ' . $e->getMessage(), [
+                'endpoint'    => '/api/goods/saveList',
+                'status_code' => $e->getCode(),
+                'message'     => $e->getMessage(),
             ]);
             throw new ERetailException('Error al enviar productos: ' . $e->getMessage());
         }

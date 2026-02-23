@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\OrganizationController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\AdminUploadController;
+use App\Http\Controllers\Admin\ActivityLogController;
 
 // Queue worker vía HTTP (reemplazo de cron)
 Route::get('/__run_queue', function () {
@@ -74,6 +75,8 @@ Route::prefix('admin')
         Route::delete('users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
 
         Route::get('uploads', [AdminUploadController::class, 'index'])->name('uploads.index');
+
+        Route::get('logs', [ActivityLogController::class, 'index'])->name('logs');
     });
 
 // ✅ Rutas protegidas con middleware auth + tenant context

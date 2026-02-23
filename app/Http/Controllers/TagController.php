@@ -6,6 +6,7 @@ use App\Services\TagService;
 use App\Services\ERetailService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use App\Services\ActivityLogger;
 
 class TagController extends Controller
 {
@@ -109,6 +110,11 @@ class TagController extends Controller
             $response = $this->eRetailService->refreshSpecificTagIds([$tagId]);
 
             if ($response) {
+                ActivityLogger::tags('tag_refresh', "Refresh de etiqueta: {$tagId}", [
+                    'tag_ids' => [$tagId],
+                    'count'   => 1,
+                ]);
+
                 return response()->json([
                     'success' => true,
                     'message' => 'Solicitud de actualización enviada correctamente',
@@ -150,6 +156,14 @@ class TagController extends Controller
             $result = $this->eRetailService->refreshTagsInBatches($tagIds);
 
             if ($result['exitosos'] > 0) {
+                ActivityLogger::tags('tags_refresh_multiple', "Refresh múltiple: {$result['exitosos']} etiquetas actualizadas", [
+                    'tag_ids' => array_slice($tagIds, 0, 20),
+                    'count'   => count($tagIds),
+                    'exitosos'=> $result['exitosos'],
+                    'fallidos'=> $result['fallidos'],
+                    'batches' => $result['batches'],
+                ]);
+
                 return response()->json([
                     'success' => true,
                     'message' => "Actualización enviada: {$result['exitosos']} exitosas, {$result['fallidos']} fallidas ({$result['batches']} bloques)",
@@ -197,6 +211,13 @@ class TagController extends Controller
             $label  = $labels[$rgb] ?? $rgb;
 
             if ($result['fallidos'] === 0) {
+                ActivityLogger::tags('led_flash', "LED flash {$label} enviado a {$result['exitosos']} etiqueta(s)", [
+                    'tag_ids'  => array_slice($tagIds, 0, 20),
+                    'count'    => count($tagIds),
+                    'color'    => $rgb,
+                    'duration' => $times,
+                ]);
+
                 return response()->json([
                     'success'  => true,
                     'message'  => "Señal LED {$label} enviada a {$result['exitosos']} etiqueta(s) por {$times} segundo(s)",

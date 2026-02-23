@@ -54,6 +54,7 @@ Los workers de cola no pasan por middleware HTTP. `ProcessUploadJob` lleva el `o
 - **Impersonación**: "Ver como cliente" — accede al dashboard con el tenant de esa org
 - **Usuarios**: gestión cross-tenant (crear, editar, asignar organización)
 - **Uploads**: historial global filtrable por organización, shop code y estado
+- **Logs de actividad**: tabla `activity_logs` con eventos de negocio y errores técnicos; filtros por tipo, nivel, organización y rango de fechas; paginación de 50 registros
 
 ---
 
@@ -108,6 +109,8 @@ QUEUE_CONNECTION=database
 | `APP_QUEUE_KEY` | Clave para el endpoint `/__run_queue` |
 | `QUEUE_CONNECTION` | `database` (recomendado para shared hosting) |
 | `ERETAIL_DB_HOST` | Fallback host BD eRetail (normalmente vacío; se configura por org) |
+| `LOG_CHANNEL` | `daily` (rotación diaria, recomendado) |
+| `LOG_DAILY_DAYS` | Días de retención de archivos de log (default: 30) |
 
 Las credenciales eRetail (API y BD) se almacenan **cifradas** en la tabla `organizations` y se inyectan en runtime por `TenantManager`.
 
@@ -116,6 +119,11 @@ Las credenciales eRetail (API y BD) se almacenan **cifradas** en la tabla `organ
 ## Changelog
 
 ### v2.0.0 — 2026-02-18
+- Sistema de logs de actividad en base de datos (`activity_logs`)
+- Panel admin `/admin/logs`: tabla con filtros por tipo, nivel, organización y fecha
+- `ActivityLogger`: helper estático con métodos por dominio (auth, upload, tags, eretail, system)
+- Eventos registrados: login/logout/login_failed, upload_created/processed/failed, tags_refreshed, tag_refresh/tags_refresh_multiple/led_flash, eretail_auth_failed/eretail_api_error
+- Rotación diaria de `laravel.log` (`LOG_CHANNEL=daily`, retención 30 días)
 - Conversión completa a arquitectura SaaS multi-tenant
 - Tabla `organizations` con credenciales eRetail (API + DB) cifradas por tenant
 - Aislamiento automático de datos via trait `BelongsToTenant` con global scopes

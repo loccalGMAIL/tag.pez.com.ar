@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use App\Services\ActivityLogger;
 
 class AuthController extends Controller
 {
@@ -53,6 +54,11 @@ class AuthController extends Controller
                 'user_agent' => $request->userAgent()
             ]);
 
+            ActivityLogger::auth('login', "Login exitoso: {$user->email}", [
+                'user_agent' => $request->userAgent(),
+                'is_super_admin' => $user->is_super_admin,
+            ]);
+
             // Super-admin va al panel de administración
             if ($user->is_super_admin) {
                 return redirect()->route('admin.dashboard')
@@ -81,6 +87,11 @@ class AuthController extends Controller
             'user_agent' => $request->userAgent()
         ]);
 
+        ActivityLogger::auth('login_failed', "Intento de login fallido: {$request->email}", [
+            'email'      => $request->email,
+            'user_agent' => $request->userAgent(),
+        ]);
+
         throw ValidationException::withMessages([
             'email' => 'Las credenciales proporcionadas no coinciden con nuestros registros.',
         ]);
@@ -100,6 +111,8 @@ class AuthController extends Controller
             'email' => Auth::user()->email ?? 'unknown',
             'ip' => $request->ip()
         ]);
+
+        ActivityLogger::auth('logout', "Logout: {$userName}");
 
         Auth::logout();
 

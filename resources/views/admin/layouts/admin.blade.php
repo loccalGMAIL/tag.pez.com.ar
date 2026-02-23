@@ -35,6 +35,11 @@
                        class="@if(request()->routeIs('admin.uploads.*')) text-yellow-400 @else text-gray-300 hover:text-white @endif text-sm font-medium">
                         <i class="fas fa-file-upload mr-1"></i> Uploads
                     </a>
+
+                    <a href="{{ route('admin.logs') }}"
+                       class="@if(request()->routeIs('admin.logs')) text-yellow-400 @else text-gray-300 hover:text-white @endif text-sm font-medium">
+                        <i class="fas fa-list-alt mr-1"></i> Logs
+                    </a>
                 </div>
 
                 <div class="flex items-center space-x-4">

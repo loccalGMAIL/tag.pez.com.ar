@@ -15,6 +15,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use App\Services\ActivityLogger;
 
 class ProcessUploadJob implements ShouldQueue
 {
@@ -61,6 +62,13 @@ class ProcessUploadJob implements ShouldQueue
         $processor->processFile($this->filePath, $this->upload->id);
 
         Log::info("ProcessUploadJob: Procesamiento Excel completado, iniciando refresh de etiquetas");
+
+        // Log de éxito de procesamiento
+        $uploadRefreshed = $this->upload->fresh();
+        ActivityLogger::upload('upload_processed', "Upload procesado: {$this->upload->original_filename}", $this->upload, [
+            'total_products'   => $uploadRefreshed->total_products,
+            'processed'        => $uploadRefreshed->processed_products,
+        ]);
 
         // 2. Refresh automático de etiquetas para productos con cambios
         $this->refreshTagsAfterProcessing($tagService, $eRetailService);
@@ -118,6 +126,12 @@ class ProcessUploadJob implements ShouldQueue
                 'resultado' => $result
             ]);
 
+            ActivityLogger::upload('tags_refreshed', "Refresh automático: {$result['exitosos']} etiquetas actualizadas", $this->upload, [
+                'tags_refreshed' => $result['exitosos'] ?? 0,
+                'fallidos'       => $result['fallidos'] ?? 0,
+                'batches'        => $result['batches'] ?? 0,
+            ]);
+
         } catch (\Exception $e) {
             // No relanzar: el procesamiento Excel ya terminó bien,
             // un error en el refresh no debería marcar el job como fallido
@@ -137,6 +151,11 @@ class ProcessUploadJob implements ShouldQueue
         $this->upload->update([
             'status' => 'failed',
             'error_message' => $exception->getMessage()
+        ]);
+
+        ActivityLogger::upload('upload_failed', "Upload fallido: {$this->upload->original_filename}", $this->upload, [
+            'error' => $exception->getMessage(),
+            'trace' => substr($exception->getTraceAsString(), 0, 500),
         ]);
     }
 }

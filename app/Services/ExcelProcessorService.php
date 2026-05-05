@@ -233,10 +233,23 @@ class ExcelProcessorService
 
             $oldPrice = $existingProduct ? $existingProduct->precio_final : null;
             $oldBarcode = $existingVariant ? $existingVariant->cod_barras : null;
+            $oldDescripcion = $existingVariant ? $existingVariant->descripcion : null;
+
+            // Si viene vacía o solo con espacios, no pisar la descripción existente.
+            $rawDescripcion = $rowData['descripcion'] ?? null;
+            $newDescripcion = null;
+            if ($rawDescripcion !== null) {
+                $rawDescripcion = (string) $rawDescripcion;
+                if (trim($rawDescripcion) !== '') {
+                    // Columna en BD: string(500)
+                    $newDescripcion = substr($rawDescripcion, 0, 500);
+                }
+            }
 
             Log::debug("🔍 Valores anteriores capturados", [
                 'old_price' => $oldPrice,
                 'old_barcode' => $oldBarcode,
+                'old_descripcion' => $oldDescripcion !== null ? substr($oldDescripcion, 0, 50) : null,
                 'existing_product' => $existingProduct ? 'SÍ' : 'NO',
                 'existing_variant' => $existingVariant ? 'SÍ' : 'NO'
             ]);
@@ -264,7 +277,7 @@ class ExcelProcessorService
                 ],
                 [
                     'product_id' => $product->id,
-                    'descripcion' => $rowData['descripcion'],  // ← Mover descripción a los campos de creación
+                    'descripcion' => $newDescripcion ?? $rowData['descripcion'],
                     'is_active' => true
                 ]
             );
@@ -281,14 +294,18 @@ class ExcelProcessorService
             // Redondear a 2 decimales para evitar falsos positivos por precisión decimal
             $priceChanged = !$product->wasRecentlyCreated && $oldPrice !== null && round((float)$oldPrice, 2) !== round((float)$rowData['precio_final'], 2);
             $barcodeChanged = !$variant->wasRecentlyCreated && $oldBarcode !== null && $oldBarcode != $rowData['cod_barras'];
+            $descripcionChanged = !$variant->wasRecentlyCreated && $newDescripcion !== null && $variant->descripcion !== $newDescripcion;
 
             Log::info("📊 Cambios detectados", [
                 'price_changed' => $priceChanged,
                 'barcode_changed' => $barcodeChanged,
+                'descripcion_changed' => $descripcionChanged,
                 'old_price' => $oldPrice,
                 'new_price' => $rowData['precio_final'],
                 'old_barcode' => $oldBarcode,
-                'new_barcode' => $rowData['cod_barras']
+                'new_barcode' => $rowData['cod_barras'],
+                'old_descripcion' => $oldDescripcion !== null ? substr($oldDescripcion, 0, 50) : null,
+                'new_descripcion' => $newDescripcion !== null ? substr($newDescripcion, 0, 50) : null,
             ]);
 
             // 3. Procesar cambios para productos/variantes existentes
@@ -309,6 +326,16 @@ class ExcelProcessorService
                         'variant_id' => $variant->id,
                         'codigo_anterior' => $oldBarcode,
                         'codigo_nuevo' => $rowData['cod_barras']
+                    ]);
+                }
+
+                // 🔥 NUEVO: Actualización de descripción si cambió (salteando vacías/solo espacios)
+                if ($descripcionChanged) {
+                    $variant->update(['descripcion' => $newDescripcion]);
+                    Log::info("📝 Descripción actualizada", [
+                        'variant_id' => $variant->id,
+                        'descripcion_anterior' => $oldDescripcion !== null ? substr($oldDescripcion, 0, 50) : null,
+                        'descripcion_nueva' => substr($newDescripcion, 0, 50)
                     ]);
                 }
             }
